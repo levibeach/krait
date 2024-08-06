@@ -6,6 +6,8 @@ const midiIn = new midi.Input()
 const midiOut = new midi.Output()
 const midiMap = require('./midimap.js')
 
+let midiInPort = 0
+let midiOutPort = 0
 const loops = new Map()
 let armed = null
 let recording = false
@@ -39,9 +41,6 @@ const logbook = blessed.log({
 	height: 5,
 	content: '',
 })
-
-midiIn.openPort(0)
-midiOut.openPort(0)
 
 function log(msg) {
   output += `${msg}\n`
@@ -148,6 +147,28 @@ function toggleArmed(lid) {
 }
 
 function init() {
+
+  midiIn.openPort(midiInPort)
+  midiOut.openPort(midiOutPort)
+
+  log(`IN: "${midiIn.getPortName(midiInPort)}"`)
+  log(`OUT: "${midiOut.getPortName(midiOutPort)}"`)
+
+  midiIn.on('message', (deltaTime, message) => {
+    // log(`m: ${message} d: ${deltaTime}`)
+    if (Object.keys(midiMap).includes(`${message[0]}`)) {
+      if (armed) {
+        if (!recording) recordLoop()
+        if (armed.data.has(armed.frame)) {
+          const newArr = armed.data.get(armed.frame)
+          newArr.push(message)
+        } else {
+          armed.data.set(armed.frame, [message])
+        }
+      }
+    }
+  })
+
   screen.key([1,2,3,4,5,6,7,8,9], (ch,key) => {
     toggleArmed(parseInt(ch))
   })
@@ -163,13 +184,13 @@ function init() {
     if (timeDifference < doubleTapThreshold && !loop.playing) {
       loop.label.destroy()
       loop.display.destroy()
-      log(`deleting loop ${k}`)
+      log(`loop ${k} deleted`)
       loops.delete(k)
       return
     }
     lastKeyPressTime = currentTime
     loop.playing ? stopLoop(k) : startLoop(k)
-    log(`loop ${k} ${loop.playing ? 'restarted' : 'has been paused'}`)
+    log(`loop ${k} ${loop.playing ? 'restarted' : 'paused'}`)
   })
 
   // Quit on Escape, q, or Control-C.
@@ -178,27 +199,12 @@ function init() {
   })
 
   // sent note off for all channels
+  // won't work in some configurations with
+  // external hardware
   screen.key([0], () => {
-    log('turning off all sound')
+    // log('turning off all sound')
     for (let chan = 0; chan < 16; chan++) {
       midiOut.sendMessage([0xB0 + chan, 123, 0])
-    }
-  })
-
-  log(`midiIn: "${midiIn.getPortName(1)}"`)
-
-  midiIn.on('message', (deltaTime, message) => {
-    // log(`m: ${message} d: ${deltaTime}`)
-    if (Object.keys(midiMap).includes(`${message[0]}`)) {
-      if (armed) {
-        if (!recording) recordLoop()
-        if (armed.data.has(armed.frame)) {
-          const newArr = armed.data.get(armed.frame)
-          newArr.push(message)
-        } else {
-          armed.data.set(armed.frame, [message])
-        }
-      }
     }
   })
 
