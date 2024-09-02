@@ -2,11 +2,12 @@
 
 const blessed = require('blessed')
 const midi = require('midi')
-const midiIn = new midi.Input()
-const midiOut = new midi.Output()
 const midiMap = require('./midimap.js')
 
-let midiInPort = 0
+const midiIn = new midi.Input()
+const midiOut = new midi.Output()
+
+let midiInPort = 1
 let midiOutPort = 0
 const loops = new Map()
 let armed = null
@@ -29,31 +30,67 @@ const shiftKeys = {
   '*':8,
   '(':9
 }
+
+const lp = [
+  '█{black-fg}···········{/black-fg}',
+  '▓█{black-fg}··········{/black-fg}',
+  '▒▓█{black-fg}·········{/black-fg}',
+  '░▒▓█{black-fg}········{/black-fg}',
+  '{black-fg}·{/black-fg}░▒▓{black-fg}···{/black-fg}█{black-fg}····{/black-fg}',
+  '{black-fg}··{/black-fg}░▒{black-fg}··{/black-fg}█▓{black-fg}····{/black-fg}',
+  '{black-fg}···{/black-fg}░{black-fg}·{/black-fg}█▓▒{black-fg}····{/black-fg}',
+  '{black-fg}····{/black-fg}█▓▒░{black-fg}····{/black-fg}',
+  '{black-fg}····{/black-fg}▓▒░{black-fg}·{/black-fg}█{black-fg}···{/black-fg}',
+  '{black-fg}····{/black-fg}▒░{black-fg}··{/black-fg}▓█{black-fg}··{/black-fg}',
+  '{black-fg}····{/black-fg}░{black-fg}···{/black-fg}▒▓█{black-fg}·{/black-fg}',
+  '{black-fg}········{/black-fg}░▒▓█',
+  '{black-fg}·········{/black-fg}░▒▓',
+  '{black-fg}··········{/black-fg}░▒',
+  '{black-fg}···········{/black-fg}░',
+  '{black-fg}············{/black-fg}',
+]
+const recl = [
+  '█▓▒░',
+  '▓█▓▒',
+  '▒▓█▓',
+  '░▒▓█',
+  '▒░▒▓',
+  '▓▒░▒',
+]
+let l = 0
+
 const screen = blessed.screen({
   fastCSR: true
 })
-const logbook = blessed.log({
-	parent: screen,
-	bottom: 0,
-	left: 0,
-	mouse: false,
-	width: screen.width - 2,
-	height: 5,
-	content: '',
+const loopList = blessed.box({
+  top: 'center',
+  left: 'center',
+  width: 44,
+  height: 5
 })
+// const logbook = blessed.log({
+// 	parent: screen,
+// 	bottom: 0,
+// 	left: 0,
+// 	mouse: false,
+// 	width: screen.width - 2,
+// 	height: 5,
+// 	content: '',
+// })
 
-function log(msg) {
-  output += `${msg}\n`
-  logbook.setText(output)
-}
+// function log(msg) {
+//   output += `${msg}\n`
+//   logbook.setText(output)
+// }
 
 function recordLoop() {
   if (!armed) return
   recording = true
-  armed.label.style.bg = 'red'
+  armed.label.style.fg = 'red'
   if (!armed.locked) {
     armed.frame = 0
     armed.interval = setInterval(() => {
+      armed.label.setContent(recl[l])
       armed.frame++
     }, midiRate)
   }
@@ -61,7 +98,7 @@ function recordLoop() {
 
 function stopRecord() {
   recording = false
-  armed.label.style.bg = 'default'
+  armed.label.setContent(`————`)
   if (!armed.loopLength) {
     armed.loopLength = armed.frame
     armed.locked = true
@@ -82,7 +119,9 @@ function startLoop(lid) {
     loop.frame = 0
   }
   loop.interval = setInterval(() => {
-		loop.display.setProgress(Math.ceil((loop.frame/loop.loopLength)*100))
+    if (!loop.loopLength) return
+    const keyframe = Math.ceil(16 * (loop.frame / loop.loopLength))
+    loop.display.setContent(lp[keyframe - 1])
     if (loop.data.has(loop.frame)) {
       const midiData = loop.data.get(loop.frame)
       midiData.forEach((item) => {
@@ -104,55 +143,81 @@ function stopLoop(lid) {
 }
 
 function toggleArmed(lid) {
-  // create a new loop if it doesn't exist
-  if (!loops.has(lid)) {
-    loops.set(lid,{
-      id: lid,
-      name: `${lid}`,
-      frame: null,
-      loopLength: null,
-      locked: false,
-      playing: false,
-      interval: null,
-      data: new Map(),
-      label: blessed.box({
-        parent: screen,
-        top: lid,
-        left: 0,
-        width: 1,
-        height: 1,
-        content: `${lid}`
-      }),
-      display: blessed.ProgressBar({
-        parent: screen,
-        top: lid,
-        left: 2,
-        pch: '—',
-        width: screen.width - 1,
-        height: 1,
-      })
-    })
-  }
   if (armed) {
     if (recording) {
       stopRecord()
-      log(`loop ${armed.id}: ${armed.data.size} events`)
+      // log(`loop ${armed.id}: ${armed.data.size} events`)
     }
-    armed.label.style.bg = 'default'
+    armed.label.style.fg = !armed.loopLength ? 'black' : 'default'
     armed = null
   } else {
     armed = loops.get(lid)
-    armed.label.style.bg = 'green'
+    armed.label.style.fg = 'yellow'
   }
 }
 
-function init() {
+function resetLoop(loop) {
+  loop.frame = null
+  loop.loopLength = null
+  loop.locked = false
+  loop.playing = false
+  loop.interval = null
+  loop.data = new Map()
+  loop.label.setContent('')
+  loop.label.style.fg = 'black'
+  loop.display.setContent(`{black-fg}············{/black-fg}`)
+}
 
+function setLoop(i) {
+  loops.set(i,{
+    id: i,
+    name: `${i}`,
+    frame: null,
+    loopLength: null,
+    locked: false,
+    playing: false,
+    interval: null,
+    data: new Map(),
+    label: blessed.box({
+      parent: loopList,
+      top: 3,
+      left: i * 5,
+      width: 4,
+      ch: '—',
+      tags: true,
+      height: 1,
+      style: {
+        fg: 'black'
+      },
+      content: `————`
+    }),
+    display: blessed.box({
+      parent: loopList,
+      top: 0,
+      left: i * 5,
+      tags: true,
+      width: 4,
+      height: 3,
+      content: `{black-fg}············{/black-fg}`
+    })
+  })
+}
+
+function initLoops() {
+  for (let i=0; i < 9; i++) {
+    setLoop(i)
+  }
+  screen.append(loopList)
+}
+
+function init() {
+  // add empty loops
+  initLoops()
+
+  // connect to midi ports
   midiIn.openPort(midiInPort)
   midiOut.openPort(midiOutPort)
-
-  log(`IN: "${midiIn.getPortName(midiInPort)}"`)
-  log(`OUT: "${midiOut.getPortName(midiOutPort)}"`)
+  // log(`I:${midiIn.getPortName(midiInPort)} / O ${midiOut.getPortName(midiOutPort)}`)
 
   midiIn.on('message', (deltaTime, message) => {
     // log(`m: ${message} d: ${deltaTime}`)
@@ -170,11 +235,11 @@ function init() {
   })
 
   screen.key([1,2,3,4,5,6,7,8,9], (ch,key) => {
-    toggleArmed(parseInt(ch))
+    toggleArmed(parseInt(ch) - 1)
   })
 
   screen.key(['!','@','#','$','%','^','&','*','('], (ch, key) => {
-    const k = parseInt(shiftKeys[ch])
+    const k = parseInt(shiftKeys[ch] - 1)
     if (!loops.has(k)) return
 
     const loop = loops.get(k)
@@ -182,18 +247,16 @@ function init() {
     const timeDifference = currentTime - lastKeyPressTime
 
     if (timeDifference < doubleTapThreshold && !loop.playing) {
-      loop.label.destroy()
-      loop.display.destroy()
-      log(`loop ${k} deleted`)
-      loops.delete(k)
+      resetLoop(loop)
+      // log(`loop ${k} deleted`)
       return
     }
     lastKeyPressTime = currentTime
     loop.playing ? stopLoop(k) : startLoop(k)
-    log(`loop ${k} ${loop.playing ? 'restarted' : 'paused'}`)
+    // log(`loop ${k} ${loop.playing ? 'restarted' : 'paused'}`)
   })
 
-  // Quit on Escape, q, or Control-C.
+  // quit on Escape, q, or Control-C.
   screen.key(['q', 'escape', 'C-c'], () => {
     process.exit()
   })
@@ -208,7 +271,11 @@ function init() {
     }
   })
 
-  setInterval(()=> screen.render(),100)
+  setInterval(() => {
+    screen.render()
+    if (!armed) return
+    l = (l + 1) % recl.length
+  }, 100)
 }
 
 init()
