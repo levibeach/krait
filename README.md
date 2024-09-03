@@ -2,6 +2,7 @@
 
 <img src="https://upload.wikimedia.org/wikipedia/commons/5/55/Red-headed_Krait.jpg" alt="Red-headed krait snake" width="400"/>
 
+
 Krait is a small command line application that records and plays MIDI messages.
 
 **WARNING:** This is a work-in-progress and was created fairly quickly so use at your own risk.
@@ -12,7 +13,7 @@ To get Krait running in the terminal, first makes ure you you have a Node and NP
 
 ```bash
 git clone https://github.com/levibeach/krait.git
-cd krai
+cd krait
 npm install
 npm run start
 # OR
@@ -20,6 +21,8 @@ node index
 ```
 
 ## Usages
+
+![Kapture 2024-09-03 at 08 51 09](https://github.com/user-attachments/assets/6e8f19eb-0b9c-40b4-bba7-880c18ae3a54)
 
 ### Arming & Recording
 
