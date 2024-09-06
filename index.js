@@ -7,7 +7,7 @@ const midiMap = require('./midimap.js')
 const midiIn = new midi.Input()
 const midiOut = new midi.Output()
 
-let midiInPort = 1
+let midiInPort = 0
 let midiOutPort = 0
 const loops = new Map()
 let armed = null
@@ -62,12 +62,14 @@ let l = 0
 const screen = blessed.screen({
   fastCSR: true
 })
+
 const loopList = blessed.box({
   top: 'center',
   left: 'center',
   width: 44,
   height: 5
 })
+
 // const logbook = blessed.log({
 // 	parent: screen,
 // 	bottom: 0,
@@ -142,6 +144,7 @@ function stopLoop(lid) {
   clearInterval(loop.interval)
 }
 
+
 function toggleArmed(lid) {
   if (armed) {
     if (recording) {
@@ -156,18 +159,6 @@ function toggleArmed(lid) {
   }
 }
 
-function resetLoop(loop) {
-  loop.frame = null
-  loop.loopLength = null
-  loop.locked = false
-  loop.playing = false
-  loop.interval = null
-  loop.data = new Map()
-  loop.label.setContent('')
-  loop.label.style.fg = 'black'
-  loop.display.setContent(`{black-fg}············{/black-fg}`)
-}
-
 function setLoop(i) {
   loops.set(i,{
     id: i,
@@ -177,6 +168,7 @@ function setLoop(i) {
     locked: false,
     playing: false,
     interval: null,
+    channels: [],
     data: new Map(),
     label: blessed.box({
       parent: loopList,
@@ -246,8 +238,12 @@ function init() {
     const currentTime = new Date().getTime()
     const timeDifference = currentTime - lastKeyPressTime
 
-    if (timeDifference < doubleTapThreshold && !loop.playing) {
-      resetLoop(loop)
+    if (timeDifference < doubleTapThreshold) {
+    	stopLoop(k)
+    	loop.data.
+      loop.label.destroy()
+      loop.display.destroy()
+      setLoop(k)
       // log(`loop ${k} deleted`)
       return
     }
