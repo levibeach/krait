@@ -13,10 +13,9 @@ const loops = new Map()
 let armed = null
 let recording = false
 let overdub = false
+let armReset = false
 let output = ''
 let midiRate = 5 // ¯\_(ツ)_/¯
-let lastKeyPressTime = 0
-const doubleTapThreshold = 300
 // probably a better way to do this
 // but mapping the shift keys works for now…
 const shiftKeys = {
@@ -71,18 +70,18 @@ const loopList = blessed.box({
 })
 
 // const logbook = blessed.log({
-// 	parent: screen,
-// 	bottom: 0,
-// 	left: 0,
-// 	mouse: false,
-// 	width: screen.width - 2,
-// 	height: 5,
-// 	content: '',
+	// parent: screen,
+	// bottom: 0,
+	// left: 0,
+	// mouse: false,
+	// width: screen.width - 2,
+	// height: 5,
+	// content: '',
 // })
-
+// 
 // function log(msg) {
-//   output += `${msg}\n`
-//   logbook.setText(output)
+	// output += `${msg}\n`
+	// logbook.setText(output)
 // }
 
 function recordLoop() {
@@ -202,6 +201,28 @@ function initLoops() {
   screen.append(loopList)
 }
 
+function resetLoop(lid) {
+	if (!loops.has(lid)) return
+  const loop = loops.get(lid)
+	stopLoop(lid)
+	loop.label.destroy()
+	loop.display.destroy()
+	setLoop(lid)
+}
+
+function toggleReset(val) {
+	armReset = typeof val != 'undefined' ? val : !armReset
+ 	if (armReset) {
+ 		for (let i=0;i<9;i++) {
+ 			loops.get(i).label.setContent(`{red-fg}×0${i+1}×{/red-fg}`)
+ 		}
+ 	} else {
+ 		for (let i=0;i<9;i++) {
+ 			loops.get(i).label.setContent('————')
+ 		}
+ 	}
+}
+
 function init() {
   // add empty loops
   initLoops()
@@ -227,35 +248,31 @@ function init() {
   })
 
   screen.key([1,2,3,4,5,6,7,8,9], (ch,key) => {
-    toggleArmed(parseInt(ch) - 1)
+  	const lid = parseInt(ch) - 1
+  	if (armReset) {
+  		resetLoop(lid)
+  	} else {
+    	toggleArmed(lid)
+  	}
   })
 
   screen.key(['!','@','#','$','%','^','&','*','('], (ch, key) => {
     const k = parseInt(shiftKeys[ch] - 1)
     if (!loops.has(k)) return
-
     const loop = loops.get(k)
-    const currentTime = new Date().getTime()
-    const timeDifference = currentTime - lastKeyPressTime
-
-    if (timeDifference < doubleTapThreshold) {
-    	stopLoop(k)
-    	loop.data.
-      loop.label.destroy()
-      loop.display.destroy()
-      setLoop(k)
-      // log(`loop ${k} deleted`)
-      return
-    }
-    lastKeyPressTime = currentTime
     loop.playing ? stopLoop(k) : startLoop(k)
     // log(`loop ${k} ${loop.playing ? 'restarted' : 'paused'}`)
   })
 
-  // quit on Escape, q, or Control-C.
-  screen.key(['q', 'escape', 'C-c'], () => {
-    process.exit()
+	// toggle delete action on/off
+  screen.key(['tab'], (ch, key) => {
+  	toggleReset()
   })
+
+  // quit on Escape, q, or Control-C.
+  screen.key(['q', 'C-c'], () => process.exit())
+
+  screen.key(['escape'], () => toggleReset(false))
 
   // sent note off for all channels
   // won't work in some configurations with
