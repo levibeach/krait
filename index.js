@@ -7,14 +7,13 @@ const midiMap = require('./midimap.js')
 const midiIn = new midi.Input()
 const midiOut = new midi.Output()
 
-let midiInPort = 0
-let midiOutPort = 0
+let midiInPort = 1
+let midiOutPort = 1
 const loops = new Map()
 let armed = null
 let recording = false
 let overdub = false
 let armReset = false
-let output = ''
 let midiRate = 5 // ¯\_(ツ)_/¯
 // probably a better way to do this
 // but mapping the shift keys works for now…
@@ -69,20 +68,37 @@ const loopList = blessed.box({
   height: 5
 })
 
-// const logbook = blessed.log({
+const debug = blessed.log({
+	parent: screen,
+	top: 0,
+	left: 0,
+	mouse: false,
+	width: screen.width,
+	height: screen.height,
+	scrollback: screen.height,
+	style: {
+		fg: 'green'
+	},
+	hidden: true
+})
+
+// TODO: add settings to config MIDI I/O
+// const settings = blessed.box({
 	// parent: screen,
-	// bottom: 0,
+	// label: 'KRAIT',
+	// top: 0,
 	// left: 0,
-	// mouse: false,
-	// width: screen.width - 2,
-	// height: 5,
+	// width: 'shrink',
+	// height: 'shrink',
 	// content: '',
+	// border: {
+		// type: 'line'
+	// },
 // })
-// 
-// function log(msg) {
-	// output += `${msg}\n`
-	// logbook.setText(output)
-// }
+
+function log(msg) {
+	debug.log(`${msg}`)
+}
 
 function recordLoop() {
   if (!armed) return
@@ -148,7 +164,7 @@ function toggleArmed(lid) {
   if (armed) {
     if (recording) {
       stopRecord()
-      // log(`loop ${armed.id}: ${armed.data.size} events`)
+      log(`loop ${armed.id}: ${armed.data.size} events`)
     }
     armed.label.style.fg = !armed.loopLength ? 'black' : 'default'
     armed = null
@@ -161,7 +177,6 @@ function toggleArmed(lid) {
 function setLoop(i) {
   loops.set(i,{
     id: i,
-    name: `${i}`,
     frame: null,
     loopLength: null,
     locked: false,
@@ -230,13 +245,18 @@ function init() {
   // connect to midi ports
   midiIn.openPort(midiInPort)
   midiOut.openPort(midiOutPort)
-  // log(`I:${midiIn.getPortName(midiInPort)} / O ${midiOut.getPortName(midiOutPort)}`)
+  log(`MIDI In:${midiIn.getPortName(midiInPort)}`)
+  log(`MIDI Out: ${midiOut.getPortName(midiOutPort)}`)
 
   midiIn.on('message', (deltaTime, message) => {
-    // log(`m: ${message} d: ${deltaTime}`)
+    // log(`RAW: ${message}`)
     if (Object.keys(midiMap).includes(`${message[0]}`)) {
+    	log(`${midiMap[message[0]].type}: ${message}`)
       if (armed) {
         if (!recording) recordLoop()
+        // when a data point already exists
+        // we can add our new data to it
+        // otherwise, create a new data point
         if (armed.data.has(armed.frame)) {
           const newArr = armed.data.get(armed.frame)
           newArr.push(message)
@@ -261,7 +281,7 @@ function init() {
     if (!loops.has(k)) return
     const loop = loops.get(k)
     loop.playing ? stopLoop(k) : startLoop(k)
-    // log(`loop ${k} ${loop.playing ? 'restarted' : 'paused'}`)
+    log(`loop ${k} ${loop.playing ? 'restarted' : 'paused'}`)
   })
 
 	// toggle delete action on/off
@@ -272,14 +292,20 @@ function init() {
   // quit on Escape, q, or Control-C.
   screen.key(['q', 'C-c'], () => process.exit())
 
-  screen.key(['escape'], () => toggleReset(false))
+  screen.key(['escape'], () => {
+  	if (armed) toggleArmed(armed.id)
+  	toggleReset(false)
+  })
+
+  screen.key(['`'], () => debug.toggle())
 
   // sent note off for all channels
   // won't work in some configurations with
   // external hardware
   screen.key([0], () => {
-    // log('turning off all sound')
+    log('turning off all sound')
     for (let chan = 0; chan < 16; chan++) {
+      log(`turning off ${chan} sounds`)
       midiOut.sendMessage([0xB0 + chan, 123, 0])
     }
   })
@@ -289,6 +315,8 @@ function init() {
     if (!armed) return
     l = (l + 1) % recl.length
   }, 100)
+
+  debug.setContent('░▒▓█ KRAIT IS READY █▓▒░')
 }
 
 init()
