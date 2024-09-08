@@ -7,8 +7,8 @@ const midiMap = require('./midimap.js')
 const midiIn = new midi.Input()
 const midiOut = new midi.Output()
 
-let midiInPort = 1
-let midiOutPort = 1
+let midiInPort = 0
+let midiOutPort = 0
 const loops = new Map()
 let armed = null
 let recording = false
@@ -58,7 +58,7 @@ const recl = [
 let l = 0
 
 const screen = blessed.screen({
-  fastCSR: true
+  smartCSR: true
 })
 
 const loopList = blessed.box({
@@ -73,28 +73,28 @@ const debug = blessed.log({
 	top: 0,
 	left: 0,
 	mouse: false,
-	width: screen.width,
-	height: screen.height,
+	width: `100%`,
+	height: `100%`,
 	scrollback: screen.height,
-	style: {
-		fg: 'green'
-	},
+	tags: true,
+	// style: { fg: 'black' },
 	hidden: true
 })
 
 // TODO: add settings to config MIDI I/O
-// const settings = blessed.box({
-	// parent: screen,
-	// label: 'KRAIT',
-	// top: 0,
-	// left: 0,
-	// width: 'shrink',
-	// height: 'shrink',
-	// content: '',
-	// border: {
-		// type: 'line'
-	// },
-// })
+const settings = blessed.box({
+	parent: screen,
+	label: 'KRAIT',
+	top: 0,
+	left: 0,
+	width: 'shrink',
+	height: 'shrink',
+	content: '',
+	border: {
+		type: 'line'
+	},
+	hidden: true,
+})
 
 function log(msg) {
 	debug.log(`${msg}`)
@@ -239,14 +239,19 @@ function toggleReset(val) {
 }
 
 function init() {
+	debug.setContent('{green-fg}░▒▓█ BOOTING KRAIT  █▓▒░{/green-fg}')
+	
   // add empty loops
   initLoops()
 
   // connect to midi ports
   midiIn.openPort(midiInPort)
   midiOut.openPort(midiOutPort)
-  log(`MIDI In:${midiIn.getPortName(midiInPort)}`)
-  log(`MIDI Out: ${midiOut.getPortName(midiOutPort)}`)
+
+	log('looking for MIDI ports…')
+  for (var i = 0; i < midiIn.getPortCount(); ++i) {
+    log(`Port ${i}: ${midiIn.getPortName(i)}`)
+  }
 
   midiIn.on('message', (deltaTime, message) => {
     // log(`RAW: ${message}`)
@@ -277,7 +282,7 @@ function init() {
   })
 
   screen.key(['!','@','#','$','%','^','&','*','('], (ch, key) => {
-    const k = parseInt(shiftKeys[ch] - 1)
+    const k = +(shiftKeys[ch] - 1)
     if (!loops.has(k)) return
     const loop = loops.get(k)
     loop.playing ? stopLoop(k) : startLoop(k)
@@ -295,8 +300,10 @@ function init() {
   screen.key(['escape'], () => {
   	if (armed) toggleArmed(armed.id)
   	toggleReset(false)
+  	settings.hide()
   })
 
+  screen.key(['C-d'], () => settings.toggle())
   screen.key(['`'], () => debug.toggle())
 
   // sent note off for all channels
@@ -316,7 +323,7 @@ function init() {
     l = (l + 1) % recl.length
   }, 100)
 
-  debug.setContent('░▒▓█ KRAIT IS READY █▓▒░')
+  log('{green-fg}░▒▓█ KRAIT IS READY █▓▒░{/green-fg}')
 }
 
 init()
