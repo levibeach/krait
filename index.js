@@ -7,13 +7,14 @@ const midiMap = require('./midimap.js')
 const midiIn = new midi.Input()
 const midiOut = new midi.Output()
 
-let midiInPort = 0
-let midiOutPort = 0
+let midiInPort = 1
+let midiOutPort = 1
 const loops = new Map()
 let armed = null
 let recording = false
 let overdub = false
 let armReset = false
+const cmdRegex = /([a-z]){1}([0-9]){1}([^a-z]{1})([0-9]){1}/gm
 let midiRate = 5 // ¯\_(ツ)_/¯
 // probably a better way to do this
 // but mapping the shift keys works for now…
@@ -58,7 +59,7 @@ const recl = [
 let l = 0
 
 const screen = blessed.screen({
-  smartCSR: true
+  fastCSR: true
 })
 
 const loopList = blessed.box({
@@ -74,26 +75,21 @@ const debug = blessed.log({
 	left: 0,
 	mouse: false,
 	width: `100%`,
-	height: `100%`,
+	height: `100%-1`,
 	scrollback: screen.height,
 	tags: true,
-	// style: { fg: 'black' },
-	hidden: true
+	style: { fg: 'black' },
+	hidden: false
 })
 
-// TODO: add settings to config MIDI I/O
-const settings = blessed.box({
+const cmd = blessed.textbox({
 	parent: screen,
-	label: 'KRAIT',
-	top: 0,
-	left: 0,
-	width: 'shrink',
-	height: 'shrink',
-	content: '',
-	border: {
-		type: 'line'
-	},
+	width: '100%',
+	height: 1,
 	hidden: true,
+	bottom: 0,
+	left: 0,
+	inputOnFocus: true,
 })
 
 function log(msg) {
@@ -158,7 +154,6 @@ function stopLoop(lid) {
   loop.playing = false
   clearInterval(loop.interval)
 }
-
 
 function toggleArmed(lid) {
   if (armed) {
@@ -238,25 +233,59 @@ function toggleReset(val) {
  	}
 }
 
+function updateMidi() {
+	const inUpdated = midiInOptions.children.find(radio => radio.checked);
+	log(`Selected: ${inUpdated ? inUpdated.content : 'None'}`);
+}
+
+function initMidiIo() {
+	const options = {}
+	// connect to midi ports
+  midiIn.openPort(midiInPort)
+  midiOut.openPort(midiOutPort)
+	log('looking for MIDI ports…')
+  for (var i = 0; i < midiIn.getPortCount(); ++i) {
+    log(`IN ${i}: ${midiIn.getPortName(i)}`)
+  }
+  for (var i = 0; i < midiOut.getPortCount(); ++i) {
+    log(`OUT ${i}: ${midiOut.getPortName(i)}`)
+  }
+  log('ports need to be configured in the code\nmaybe someday it will be configurable')
+}
+
+function parseCmd(val) {
+	// only allowing for duplicating
+	// loop lengths for the moment
+	log(val)
+	const data = cmdRegex.exec(val)
+	log(data)
+	if (!data) return
+	try {
+		const loopA = loops.get((+data[2]) - 1)
+		const loopB = loops.get((+data[4]) - 1)
+		loopB.frame = 0
+		loopB.locked = true
+		loopB.loopLength = loopA.loopLength
+		loopB.label.style.fg = 'default'
+	} catch (err) {
+		log(err)
+	}
+	cmd.clearValue()
+}
+
 function init() {
-	debug.setContent('{green-fg}░▒▓█ BOOTING KRAIT  █▓▒░{/green-fg}')
+	debug.setContent('░▒▓█ BOOTING KRAIT  █▓▒░')
 	
   // add empty loops
   initLoops()
-
-  // connect to midi ports
-  midiIn.openPort(midiInPort)
-  midiOut.openPort(midiOutPort)
-
-	log('looking for MIDI ports…')
-  for (var i = 0; i < midiIn.getPortCount(); ++i) {
-    log(`Port ${i}: ${midiIn.getPortName(i)}`)
-  }
+  
+  // connect to midi and setup options
+  initMidiIo()
 
   midiIn.on('message', (deltaTime, message) => {
     // log(`RAW: ${message}`)
     if (Object.keys(midiMap).includes(`${message[0]}`)) {
-    	log(`${midiMap[message[0]].type}: ${message}`)
+    	log(`${message} | ${midiMap[message[0]].type}`)
       if (armed) {
         if (!recording) recordLoop()
         // when a data point already exists
@@ -286,7 +315,7 @@ function init() {
     if (!loops.has(k)) return
     const loop = loops.get(k)
     loop.playing ? stopLoop(k) : startLoop(k)
-    log(`loop ${k} ${loop.playing ? 'restarted' : 'paused'}`)
+    log(`loop ${k+1} ${loop.playing ? 'restarted' : 'paused'}`)
   })
 
 	// toggle delete action on/off
@@ -300,13 +329,29 @@ function init() {
   screen.key(['escape'], () => {
   	if (armed) toggleArmed(armed.id)
   	toggleReset(false)
-  	settings.hide()
+  	cmd.hide()
   })
 
-  screen.key(['C-d'], () => settings.toggle())
+  screen.key(['C-e'], () => {
+  	cmd.toggle()
+  	if (!cmd.hidden) cmd.focus()
+  })
+
   screen.key(['`'], () => debug.toggle())
 
-  // sent note off for all channels
+  
+  cmd.on('submit', (data) => {
+    // log(`Input: ${cmd.getValue()}`)
+    parseCmd(cmd.getValue())
+    cmd.focus()
+  })
+  cmd.on('cancel', (data) => {
+  	cmd.clearValue()
+  	cmd.hide()
+  })
+  
+
+  // send sound off for all channels
   // won't work in some configurations with
   // external hardware
   screen.key([0], () => {
@@ -323,7 +368,7 @@ function init() {
     l = (l + 1) % recl.length
   }, 100)
 
-  log('{green-fg}░▒▓█ KRAIT IS READY █▓▒░{/green-fg}')
+  log('░▒▓█ KRAIT IS READY █▓▒░')
 }
 
 init()
