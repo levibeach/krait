@@ -51,15 +51,15 @@ const lp = [
 ]
 const motion = {
 	duplicate: [
-		'{black-fg}········{/black-fg}████',
-		'{black-fg}····{/black-fg}████████',
+		'{green-fg}████████████{/green-fg}',
 		'████████████',
 		'████████▓▓▓▓',
 		'████▓▓▓▓▒▒▒▒',
 		'▓▓▓▓▒▒▒▒░░░░',
 		'▒▒▒▒░░░░{black-fg}····{/black-fg}',
 		'░░░░{black-fg}········{/black-fg}',
-	]
+		'{black-fg}············{/black-fg}',
+	],
 }
 const recl = [
   '█▓▒░',
@@ -273,10 +273,20 @@ function duplicate(a,b) {
 		loopB.locked = true
 		loopB.loopLength = loopA.loopLength
 		loopB.label.style.fg = 'default'
+		let k = 0
+		let anima = setInterval(() => {
+			if (k > motion.duplicate.length - 1) {
+				clearInterval(anima)
+			} else {
+	    	loopB.display.setContent(motion.duplicate[k])
+	    	k++
+			}
+	  }, 100)
 	} catch (err) {
 		log(err)
 	}
 }
+
 /**
  * Multiplies the loop length by a given factor
  * @param {number} a The target loop
@@ -373,7 +383,6 @@ function init() {
   })
 
   screen.key(['d','m'], (ch, key) => {
-  	log(ch)
   	action = true
   	sequence = ch
   })
