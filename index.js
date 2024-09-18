@@ -6,15 +6,16 @@ const midiMap = require('./midimap.js')
 
 const midiIn = new midi.Input()
 const midiOut = new midi.Output()
-
 let midiInPort = 1
 let midiOutPort = 1
+
 const loops = new Map()
 let armed = null
 let recording = false
 let overdub = false
+let action = false
+let sequence = ''
 let armReset = false
-const cmdRegex = /([a-z]){1}([0-9]){1}([^a-z]{1})([0-9]){1}/gm
 let midiRate = 5 // ¯\_(ツ)_/¯
 // probably a better way to do this
 // but mapping the shift keys works for now…
@@ -48,6 +49,18 @@ const lp = [
   '{black-fg}···········{/black-fg}░',
   '{black-fg}············{/black-fg}',
 ]
+const motion = {
+	duplicate: [
+		'{black-fg}········{/black-fg}████',
+		'{black-fg}····{/black-fg}████████',
+		'████████████',
+		'████████▓▓▓▓',
+		'████▓▓▓▓▒▒▒▒',
+		'▓▓▓▓▒▒▒▒░░░░',
+		'▒▒▒▒░░░░{black-fg}····{/black-fg}',
+		'░░░░{black-fg}········{/black-fg}',
+	]
+}
 const recl = [
   '█▓▒░',
   '▓█▓▒',
@@ -80,16 +93,6 @@ const debug = blessed.log({
 	tags: true,
 	style: { fg: 'black' },
 	hidden: false
-})
-
-const cmd = blessed.textbox({
-	parent: screen,
-	width: '100%',
-	height: 1,
-	hidden: true,
-	bottom: 0,
-	left: 0,
-	inputOnFocus: true,
 })
 
 function log(msg) {
@@ -224,7 +227,9 @@ function toggleReset(val) {
 	armReset = typeof val != 'undefined' ? val : !armReset
  	if (armReset) {
  		for (let i=0;i<9;i++) {
- 			loops.get(i).label.setContent(`{red-fg}×0${i+1}×{/red-fg}`)
+ 			loops.get(i).label.setContent(
+ 				`{red-fg}×0${i+1}×{/red-fg}`
+ 			)
  		}
  	} else {
  		for (let i=0;i<9;i++) {
@@ -253,16 +258,17 @@ function initMidiIo() {
   log('ports need to be configured in the code\nmaybe someday it will be configurable')
 }
 
-function parseCmd(val) {
-	// only allowing for duplicating
-	// loop lengths for the moment
-	log(val)
-	const data = cmdRegex.exec(val)
-	log(data)
-	if (!data) return
+/**
+ * Duplicates a loop to another loop slot
+ * but does not include any messages
+ * @param {number} a The target loop
+ * @param {number} b The destination loop
+ */
+function duplicate(a,b) {
+	log(`loop ${a} → loop ${b}`)
 	try {
-		const loopA = loops.get((+data[2]) - 1)
-		const loopB = loops.get((+data[4]) - 1)
+		const loopA = loops.get(a - 1)
+		const loopB = loops.get(b - 1)
 		loopB.frame = 0
 		loopB.locked = true
 		loopB.loopLength = loopA.loopLength
@@ -270,7 +276,43 @@ function parseCmd(val) {
 	} catch (err) {
 		log(err)
 	}
-	cmd.clearValue()
+}
+/**
+ * Multiplies the loop length by a given factor
+ * @param {number} a The target loop
+ * @param {number} f The factor to multiply
+ */
+function multiply(a,f) {
+	log(`loop ${a} × ${f}`)
+	try {
+		const loop = loops.get(a - 1)
+		loop.loopLength = loop.loopLength * f
+	} catch (err) {
+		log(err)
+	}
+}
+
+function runSequence() {
+ 	try {
+ 		const s = sequence.charAt(0)
+ 		const a = +sequence.charAt(1)
+ 		const b = +sequence.charAt(2)
+		switch(s) {
+			case 'd':
+				duplicate(a,b)
+				break
+			case 'm':
+				multiply(a,b)
+			default:
+				// do nothing
+				return
+		}
+ 	} catch (err) {
+ 		log(err)
+ 	} finally {
+		action = false
+		sequence = ''
+ 	}
 }
 
 function init() {
@@ -302,11 +344,18 @@ function init() {
   })
 
   screen.key([1,2,3,4,5,6,7,8,9], (ch,key) => {
-  	const lid = parseInt(ch) - 1
-  	if (armReset) {
-  		resetLoop(lid)
+  	if (!action) {
+	  	const lid = parseInt(ch) - 1
+	  	if (armReset) {
+	  		resetLoop(lid)
+	  	} else {
+	    	toggleArmed(lid)
+	  	}
   	} else {
-    	toggleArmed(lid)
+  		sequence += `${ch}` 
+  		if (sequence.length === 3) {
+  			runSequence()
+  		}
   	}
   })
 
@@ -323,33 +372,21 @@ function init() {
   	toggleReset()
   })
 
+  screen.key(['d','m'], (ch, key) => {
+  	log(ch)
+  	action = true
+  	sequence = ch
+  })
+
   // quit on Escape, q, or Control-C.
   screen.key(['q', 'C-c'], () => process.exit())
 
   screen.key(['escape'], () => {
   	if (armed) toggleArmed(armed.id)
   	toggleReset(false)
-  	cmd.hide()
-  })
-
-  screen.key(['C-e'], () => {
-  	cmd.toggle()
-  	if (!cmd.hidden) cmd.focus()
   })
 
   screen.key(['`'], () => debug.toggle())
-
-  
-  cmd.on('submit', (data) => {
-    // log(`Input: ${cmd.getValue()}`)
-    parseCmd(cmd.getValue())
-    cmd.focus()
-  })
-  cmd.on('cancel', (data) => {
-  	cmd.clearValue()
-  	cmd.hide()
-  })
-  
 
   // send sound off for all channels
   // won't work in some configurations with
