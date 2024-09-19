@@ -255,18 +255,22 @@ function updateMidi() {
 }
 
 function initMidiIo() {
-	const options = {}
-	// connect to midi ports
-  midiIn.openPort(midiInPort)
-  midiOut.openPort(midiOutPort)
-	log('looking for MIDI ports…')
-  for (var i = 0; i < midiIn.getPortCount(); ++i) {
-    log(`IN ${i}: ${midiIn.getPortName(i)}`)
-  }
-  for (var i = 0; i < midiOut.getPortCount(); ++i) {
-    log(`OUT ${i}: ${midiOut.getPortName(i)}`)
-  }
-  log('ports need to be configured in the code\nmaybe someday it will be configurable')
+	try {
+		const options = {}
+		// connect to midi ports
+	  midiIn.openPort(midiInPort)
+	  midiOut.openPort(midiOutPort)
+		log('looking for MIDI ports…')
+	  for (var i = 0; i < midiIn.getPortCount(); ++i) {
+	    log(`IN ${i}: ${midiIn.getPortName(i)}`)
+	  }
+	  for (var i = 0; i < midiOut.getPortCount(); ++i) {
+	    log(`OUT ${i}: ${midiOut.getPortName(i)}`)
+	  }
+	  log('ports need to be configured in the code\nmaybe someday it will be configurable')
+	} catch (err) {
+		log(err)
+	}
 }
 
 /**
