@@ -60,6 +60,14 @@ const motion = {
 		'░░░░{black-fg}········{/black-fg}',
 		'{black-fg}············{/black-fg}',
 	],
+	multiply: [
+		'{red-fg}█··█·██·█··█{/red-fg}',
+		'░··░·░░·░··░',
+		'{red-fg}█··█·██·█··█{/red-fg}',
+		'░··░·░░·░··░',
+		'{red-fg}█··█·██·█··█{/red-fg}',
+		'{black-fg}············{/black-fg}', 
+	]
 }
 const recl = [
   '█▓▒░',
@@ -137,7 +145,9 @@ function startLoop(lid) {
   loop.interval = setInterval(() => {
     if (!loop.loopLength) return
     const keyframe = Math.ceil(16 * (loop.frame / loop.loopLength))
-    loop.display.setContent(lp[keyframe - 1])
+    if (!loop.animating) {
+    	loop.display.setContent(lp[keyframe - 1])
+    }
     if (loop.data.has(loop.frame)) {
       const midiData = loop.data.get(loop.frame)
       midiData.forEach((item) => {
@@ -162,7 +172,7 @@ function toggleArmed(lid) {
   if (armed) {
     if (recording) {
       stopRecord()
-      log(`loop ${armed.id}: ${armed.data.size} events`)
+      log(`loop ${armed.id + 1}: ${armed.data.size} events`)
     }
     armed.label.style.fg = !armed.loopLength ? 'black' : 'default'
     armed = null
@@ -179,6 +189,7 @@ function setLoop(i) {
     loopLength: null,
     locked: false,
     playing: false,
+    animating: false,
     interval: null,
     channels: [],
     data: new Map(),
@@ -273,15 +284,7 @@ function duplicate(a,b) {
 		loopB.locked = true
 		loopB.loopLength = loopA.loopLength
 		loopB.label.style.fg = 'default'
-		let k = 0
-		let anima = setInterval(() => {
-			if (k > motion.duplicate.length - 1) {
-				clearInterval(anima)
-			} else {
-	    	loopB.display.setContent(motion.duplicate[k])
-	    	k++
-			}
-	  }, 100)
+		runMotion('duplicate', loopB)
 	} catch (err) {
 		log(err)
 	}
@@ -297,9 +300,24 @@ function multiply(a,f) {
 	try {
 		const loop = loops.get(a - 1)
 		loop.loopLength = loop.loopLength * f
+		runMotion('multiply', loop)
 	} catch (err) {
 		log(err)
 	}
+}
+
+function runMotion(a, loop) {
+	let k = 0
+	loop.animating = true
+	let anima = setInterval(() => {
+		if (k > motion[a].length - 1) {
+			loop.animating = false
+			clearInterval(anima)
+		} else {
+    	loop.display.setContent(motion[a][k])
+    	k++
+		}
+  }, 100)
 }
 
 function runSequence() {
