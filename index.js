@@ -255,22 +255,18 @@ function updateMidi() {
 }
 
 function initMidiIo() {
-	try {
-		const options = {}
-		// connect to midi ports
-	  midiIn.openPort(midiInPort)
-	  midiOut.openPort(midiOutPort)
-		log('looking for MIDI ports…')
-	  for (var i = 0; i < midiIn.getPortCount(); ++i) {
-	    log(`IN ${i}: ${midiIn.getPortName(i)}`)
-	  }
-	  for (var i = 0; i < midiOut.getPortCount(); ++i) {
-	    log(`OUT ${i}: ${midiOut.getPortName(i)}`)
-	  }
-	  log('ports need to be configured in the code\nmaybe someday it will be configurable')
-	} catch (err) {
-		log(err)
-	}
+	const options = {}
+	// connect to midi ports
+  midiIn.openPort(midiInPort)
+  midiOut.openPort(midiOutPort)
+	log('looking for MIDI ports…')
+  for (var i = 0; i < midiIn.getPortCount(); ++i) {
+    log(`IN ${i}: ${midiIn.getPortName(i)}`)
+  }
+  for (var i = 0; i < midiOut.getPortCount(); ++i) {
+    log(`OUT ${i}: ${midiOut.getPortName(i)}`)
+  }
+  log('ports need to be configured in the code\nmaybe someday it will be configurable')
 }
 
 /**
@@ -282,13 +278,16 @@ function initMidiIo() {
 function duplicate(a,b) {
 	log(`loop ${a} → loop ${b}`)
 	try {
-		const loopA = loops.get(a - 1)
-		const loopB = loops.get(b - 1)
+  	a = a - 1
+  	b = b - 1
+		const loopA = loops.get(a)
+		const loopB = loops.get(b)
 		loopB.frame = 0
 		loopB.locked = true
 		loopB.loopLength = loopA.loopLength
 		loopB.label.style.fg = 'default'
 		runMotion('duplicate', loopB)
+		startLoop(b)
 	} catch (err) {
 		log(err)
 	}
@@ -308,6 +307,12 @@ function multiply(a,f) {
 	} catch (err) {
 		log(err)
 	}
+}
+
+function clean(a) {
+	log(`loop ${a} cleaned`)
+	const loop = loops.get(a - 1)
+	loop.data = new Map()
 }
 
 function runMotion(a, loop) {
@@ -330,11 +335,15 @@ function runSequence() {
  		const a = +sequence.charAt(1)
  		const b = +sequence.charAt(2)
 		switch(s) {
+			case 'c':
+				clean(a)
+				break
 			case 'd':
 				duplicate(a,b)
 				break
 			case 'm':
 				multiply(a,b)
+				break
 			default:
 				// do nothing
 				return
@@ -385,7 +394,8 @@ function init() {
 	  	}
   	} else {
   		sequence += `${ch}` 
-  		if (sequence.length === 3) {
+  		if (sequence.length = 2 && sequence.charAt(0) == 'c' 
+  			|| sequence.length === 3) {
   			runSequence()
   		}
   	}
@@ -404,7 +414,7 @@ function init() {
   	toggleReset()
   })
 
-  screen.key(['d','m'], (ch, key) => {
+  screen.key(['c','d','m'], (ch, key) => {
   	action = true
   	sequence = ch
   })
