@@ -3,6 +3,7 @@
 const blessed = require('blessed')
 const midi = require('midi')
 const midiMap = require('./midimap.js')
+const motion = require('./motion.js')
 
 const midiIn = new midi.Input()
 const midiOut = new midi.Output()
@@ -16,7 +17,7 @@ let overdub = false
 let action = false
 let sequence = ''
 let armReset = false
-let midiRate = 5 // ¯\_(ツ)_/¯
+let midiRate = 25 // ¯\_(ツ)_/¯
 // probably a better way to do this
 // but mapping the shift keys works for now…
 const shiftKeys = {
@@ -31,52 +32,6 @@ const shiftKeys = {
   '(':9
 }
 
-const lp = [
-  '█{black-fg}···········{/black-fg}',
-  '▓█{black-fg}··········{/black-fg}',
-  '▒▓█{black-fg}·········{/black-fg}',
-  '░▒▓█{black-fg}········{/black-fg}',
-  '{black-fg}·{/black-fg}░▒▓{black-fg}···{/black-fg}█{black-fg}····{/black-fg}',
-  '{black-fg}··{/black-fg}░▒{black-fg}··{/black-fg}█▓{black-fg}····{/black-fg}',
-  '{black-fg}···{/black-fg}░{black-fg}·{/black-fg}█▓▒{black-fg}····{/black-fg}',
-  '{black-fg}····{/black-fg}█▓▒░{black-fg}····{/black-fg}',
-  '{black-fg}····{/black-fg}▓▒░{black-fg}·{/black-fg}█{black-fg}···{/black-fg}',
-  '{black-fg}····{/black-fg}▒░{black-fg}··{/black-fg}▓█{black-fg}··{/black-fg}',
-  '{black-fg}····{/black-fg}░{black-fg}···{/black-fg}▒▓█{black-fg}·{/black-fg}',
-  '{black-fg}········{/black-fg}░▒▓█',
-  '{black-fg}·········{/black-fg}░▒▓',
-  '{black-fg}··········{/black-fg}░▒',
-  '{black-fg}···········{/black-fg}░',
-  '{black-fg}············{/black-fg}',
-]
-const motion = {
-	duplicate: [
-		'{green-fg}████████████{/green-fg}',
-		'████████████',
-		'████████▓▓▓▓',
-		'████▓▓▓▓▒▒▒▒',
-		'▓▓▓▓▒▒▒▒░░░░',
-		'▒▒▒▒░░░░{black-fg}····{/black-fg}',
-		'░░░░{black-fg}········{/black-fg}',
-		'{black-fg}············{/black-fg}',
-	],
-	multiply: [
-		'{red-fg}█··█·██·█··█{/red-fg}',
-		'░··░·░░·░··░',
-		'{red-fg}█··█·██·█··█{/red-fg}',
-		'░··░·░░·░··░',
-		'{red-fg}█··█·██·█··█{/red-fg}',
-		'{black-fg}············{/black-fg}', 
-	]
-}
-const recl = [
-  '█▓▒░',
-  '▓█▓▒',
-  '▒▓█▓',
-  '░▒▓█',
-  '▒░▒▓',
-  '▓▒░▒',
-]
 let l = 0
 
 const screen = blessed.screen({
@@ -103,6 +58,15 @@ const debug = blessed.log({
 	hidden: false
 })
 
+const fps = blessed.box({
+	parent: screen,
+	top: 0,
+	right: 0,
+	width: 'shrink',
+	height: 1,
+	style: { fg: 'black' },
+})
+
 function log(msg) {
 	debug.log(`${msg}`)
 }
@@ -114,7 +78,7 @@ function recordLoop() {
   if (!armed.locked) {
     armed.frame = 0
     armed.interval = setInterval(() => {
-      armed.label.setContent(recl[l])
+      armed.label.setContent(motion.record[l])
       armed.frame++
     }, midiRate)
   }
@@ -142,23 +106,23 @@ function startLoop(lid) {
   } else {
     loop.frame = 0
   }
+  if (!loop.loopLength) {
+  	log('loop has no length')
+  	return
+  }
   loop.interval = setInterval(() => {
-    if (!loop.loopLength) return
-    const keyframe = Math.ceil(16 * (loop.frame / loop.loopLength))
+    const keyframe = Math.ceil((motion.playback.length - 1) * (loop.frame / loop.loopLength))
     if (!loop.animating) {
-    	loop.display.setContent(lp[keyframe - 1])
+    	loop.display.setContent(motion.playback[keyframe])
+    	// loop.label.setContent(`${loop.frame}.${keyframe}`)
     }
     if (loop.data.has(loop.frame)) {
-      const midiData = loop.data.get(loop.frame)
-      midiData.forEach((item) => {
+      loop.data.get(loop.frame).forEach((item) => {
+      	// log(item)
         midiOut.sendMessage(item)
       })
     }
-    if (loop.frame + 1 > loop.loopLength) {
-      loop.frame = 0
-    } else {
-      loop.frame++
-    }
+    loop.frame = (loop.frame + 1) % loop.loopLength
   }, midiRate)
 }
 
@@ -255,18 +219,22 @@ function updateMidi() {
 }
 
 function initMidiIo() {
-	const options = {}
-	// connect to midi ports
-  midiIn.openPort(midiInPort)
-  midiOut.openPort(midiOutPort)
-	log('looking for MIDI ports…')
-  for (var i = 0; i < midiIn.getPortCount(); ++i) {
-    log(`IN ${i}: ${midiIn.getPortName(i)}`)
-  }
-  for (var i = 0; i < midiOut.getPortCount(); ++i) {
-    log(`OUT ${i}: ${midiOut.getPortName(i)}`)
-  }
-  log('ports need to be configured in the code\nmaybe someday it will be configurable')
+	try {
+		const options = {}
+		// connect to midi ports
+	  midiIn.openPort(midiInPort)
+	  midiOut.openPort(midiOutPort)
+		log('looking for MIDI ports…')
+	  for (var i = 0; i < midiIn.getPortCount(); ++i) {
+	    log(`IN ${i}: ${midiIn.getPortName(i)}`)
+	  }
+	  for (var i = 0; i < midiOut.getPortCount(); ++i) {
+	    log(`OUT ${i}: ${midiOut.getPortName(i)}`)
+	  }
+	  log('ports need to be configured in the code\nmaybe someday it will be configurable')
+	} catch (err) {
+		log(err)
+	}
 }
 
 /**
@@ -285,9 +253,15 @@ function duplicate(a,b) {
 		loopB.frame = 0
 		loopB.locked = true
 		loopB.loopLength = loopA.loopLength
+		log(`loop ${loopB.id + 1}: ${loopB.loopLength}`)
 		loopB.label.style.fg = 'default'
 		runMotion('duplicate', loopB)
-		startLoop(b)
+		const timer = setInterval(()=>{
+			if (loopA.frame == 0) {
+				startLoop(b) 
+				clearInterval(timer)
+			}
+		}, 10)
 	} catch (err) {
 		log(err)
 	}
@@ -299,11 +273,28 @@ function duplicate(a,b) {
  * @param {number} f The factor to multiply
  */
 function multiply(a,f) {
+	try {
+		const loop = loops.get(a - 1)
+		const newLength = loop.loopLength * f
+	  log(`loop ${a}: ${loop.loopLength} × ${f} = ${newLength}`)
+		loop.loopLength = newLength
+		runMotion('multiply', loop)
+	} catch (err) {
+		log(err)
+	}
+}
+
+/**
+ * Trims the loop length by a given factor
+ * @param {number} a The target loop
+ * @param {number} f The factor to divide
+ */
+function trim(a,f) {
 	log(`loop ${a} × ${f}`)
 	try {
 		const loop = loops.get(a - 1)
-		loop.loopLength = loop.loopLength * f
-		runMotion('multiply', loop)
+		loop.loopLength = loop.loopLength / f
+		runMotion('trim', loop)
 	} catch (err) {
 		log(err)
 	}
@@ -313,6 +304,7 @@ function clean(a) {
 	log(`loop ${a} cleaned`)
 	const loop = loops.get(a - 1)
 	loop.data = new Map()
+	runMotion('clean', loop)
 }
 
 function runMotion(a, loop) {
@@ -344,6 +336,9 @@ function runSequence() {
 			case 'm':
 				multiply(a,b)
 				break
+			case 't':
+				trim(a,b)
+				break
 			default:
 				// do nothing
 				return
@@ -368,15 +363,14 @@ function init() {
   midiIn.on('message', (deltaTime, message) => {
     // log(`RAW: ${message}`)
     if (Object.keys(midiMap).includes(`${message[0]}`)) {
-    	log(`${message} | ${midiMap[message[0]].type}`)
+    	// log(`${message} | ${midiMap[message[0]].type}`)
       if (armed) {
         if (!recording) recordLoop()
         // when a data point already exists
         // we can add our new data to it
         // otherwise, create a new data point
         if (armed.data.has(armed.frame)) {
-          const newArr = armed.data.get(armed.frame)
-          newArr.push(message)
+          armed.data.get(armed.frame).push(message)
         } else {
           armed.data.set(armed.frame, [message])
         }
@@ -414,13 +408,13 @@ function init() {
   	toggleReset()
   })
 
-  screen.key(['c','d','m'], (ch, key) => {
+  screen.key(['c','d','m','t'], (ch, key) => {
   	action = true
   	sequence = ch
   })
 
   // quit on Escape, q, or Control-C.
-  screen.key(['q', 'C-c'], () => process.exit())
+  screen.key(['C-q', 'C-c'], () => process.exit())
 
   screen.key(['escape'], () => {
   	if (armed) toggleArmed(armed.id)
@@ -440,11 +434,14 @@ function init() {
     }
   })
 
+	var f = 0
   setInterval(() => {
     screen.render()
+    fps.setContent(`${f}`)
+    f++
     if (!armed) return
-    l = (l + 1) % recl.length
-  }, 100)
+    l = (l + 1) % motion.record.length
+  }, midiRate)
 
   log('░▒▓█ KRAIT IS READY █▓▒░')
 }
