@@ -51,20 +51,11 @@ const debug = blessed.log({
 	left: 0,
 	mouse: false,
 	width: `100%`,
-	height: `100%-1`,
-	scrollback: screen.height,
+	height: `100%`,
+	scrollback: 0,
 	tags: true,
 	style: { fg: 'black' },
-	hidden: false
-})
-
-const fps = blessed.box({
-	parent: screen,
-	top: 0,
-	right: 0,
-	width: 'shrink',
-	height: 1,
-	style: { fg: 'black' },
+	hidden: true
 })
 
 function log(msg) {
@@ -434,11 +425,8 @@ function init() {
     }
   })
 
-	var f = 0
   setInterval(() => {
     screen.render()
-    fps.setContent(`${f}`)
-    f++
     if (!armed) return
     l = (l + 1) % motion.record.length
   }, midiRate)
