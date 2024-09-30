@@ -1,15 +1,19 @@
 // time is an illusion
-
+const fs = require('fs')
+const path = require('path') 
 const blessed = require('blessed')
 const midi = require('midi')
 const midiMap = require('./midimap.js')
 const motion = require('./motion.js')
+
+const logFile = path.join(__dirname, 'log.txt')
 
 const midiIn = new midi.Input()
 const midiOut = new midi.Output()
 let midiInPort = 1
 let midiOutPort = 1
 
+const playbackLength = motion.playback.length - 1
 const loops = new Map()
 let armed = null
 let recording = false
@@ -62,6 +66,16 @@ function log(msg) {
 	debug.log(`${msg}`)
 }
 
+function writeLog(message) {
+  const timestamp = new Date().toISOString()
+  const logMessage = `${timestamp}| ${message}\n`
+  fs.appendFile(logFile, logMessage, (err) => {
+  	if (err) {
+  		log(`Failed to write to log file: ${err}`)
+  	}
+  })
+}
+
 function recordLoop() {
   if (!armed) return
   recording = true
@@ -98,18 +112,17 @@ function startLoop(lid) {
     loop.frame = 0
   }
   if (!loop.loopLength) {
-  	log('loop has no length')
+  	writeLog('loop has no length')
   	return
   }
   loop.interval = setInterval(() => {
-    const keyframe = Math.ceil((motion.playback.length - 1) * (loop.frame / loop.loopLength))
+    const frameRatio = loop.frame / loop.loopLength
+    const keyframe = Math.ceil(playbackLength * frameRatio)
     if (!loop.animating) {
     	loop.display.setContent(motion.playback[keyframe])
-    	// loop.label.setContent(`${loop.frame}.${keyframe}`)
     }
     if (loop.data.has(loop.frame)) {
       loop.data.get(loop.frame).forEach((item) => {
-      	// log(item)
         midiOut.sendMessage(item)
       })
     }
@@ -204,25 +217,20 @@ function toggleReset(val) {
  	}
 }
 
-function updateMidi() {
-	const inUpdated = midiInOptions.children.find(radio => radio.checked);
-	log(`Selected: ${inUpdated ? inUpdated.content : 'None'}`);
-}
-
 function initMidiIo() {
 	try {
 		const options = {}
 		// connect to midi ports
 	  midiIn.openPort(midiInPort)
 	  midiOut.openPort(midiOutPort)
-		log('looking for MIDI ports…')
+		// log('looking for MIDI ports…')
 	  for (var i = 0; i < midiIn.getPortCount(); ++i) {
-	    log(`IN ${i}: ${midiIn.getPortName(i)}`)
+	    writeLog(`IN ${i}: ${midiIn.getPortName(i)}`)
 	  }
 	  for (var i = 0; i < midiOut.getPortCount(); ++i) {
-	    log(`OUT ${i}: ${midiOut.getPortName(i)}`)
+	    writeLog(`OUT ${i}: ${midiOut.getPortName(i)}`)
 	  }
-	  log('ports need to be configured in the code\nmaybe someday it will be configurable')
+	  // log('ports need to be configured in the code\nmaybe someday it will be configurable')
 	} catch (err) {
 		log(err)
 	}
@@ -244,9 +252,17 @@ function duplicate(a,b) {
 		loopB.frame = 0
 		loopB.locked = true
 		loopB.loopLength = loopA.loopLength
-		log(`loop ${loopB.id + 1}: ${loopB.loopLength}`)
 		loopB.label.style.fg = 'default'
 		runMotion('duplicate', loopB)
+		 
+		writeLog(JSON.stringify({
+			id:loopB.id,
+			frame: loopB.frame,
+			loopLength: loopB.loopLength,
+			locked: loopB.locked,
+			data: Array.from(loopB.data).length
+		},null,2))
+
 		const timer = setInterval(()=>{
 			if (loopA.frame == 0) {
 				startLoop(b) 
@@ -254,7 +270,7 @@ function duplicate(a,b) {
 			}
 		}, 10)
 	} catch (err) {
-		log(err)
+		writeLog(err)
 	}
 }
 
@@ -267,11 +283,19 @@ function multiply(a,f) {
 	try {
 		const loop = loops.get(a - 1)
 		const newLength = loop.loopLength * f
-	  log(`loop ${a}: ${loop.loopLength} × ${f} = ${newLength}`)
 		loop.loopLength = newLength
 		runMotion('multiply', loop)
+		
+		writeLog(JSON.stringify({
+			id:loop.id,
+			frame: loop.frame,
+			loopLength: loop.loopLength,
+			locked: loop.locked,
+			data: Array.from(loop.data).length
+		},null,2))
+		
 	} catch (err) {
-		log(err)
+		writeLog(err)
 	}
 }
 
@@ -281,13 +305,23 @@ function multiply(a,f) {
  * @param {number} f The factor to divide
  */
 function trim(a,f) {
-	log(`loop ${a} × ${f}`)
+	log(`loop ${a} / ${f}`)
 	try {
 		const loop = loops.get(a - 1)
-		loop.loopLength = loop.loopLength / f
+		const newLength = loop.loopLength / f
+		loop.loopLength = newLength
 		runMotion('trim', loop)
+		
+		writeLog(JSON.stringify({
+			id:loop.id,
+			frame: loop.frame,
+			loopLength: loop.loopLength,
+			locked: loop.locked,
+			data: Array.from(loop.data).length
+		},null,2))
+		
 	} catch (err) {
-		log(err)
+		writeLog(err)
 	}
 }
 
@@ -335,7 +369,7 @@ function runSequence() {
 				return
 		}
  	} catch (err) {
- 		log(err)
+ 		writeLog(err)
  	} finally {
 		action = false
 		sequence = ''
