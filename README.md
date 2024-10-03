@@ -60,7 +60,7 @@ To do this, press `d` followed by the loop number, then the destination loop slo
 #### Examples
 
 | Operation | Outcome                          |
-| --------- | -------------------------------- |
+| :-------- | :------------------------------- |
 | `d25`     | Loop 2's length is set on loop 5 |
 | `d93`     | Loop 9's length is set on loop 3 |
 
@@ -75,7 +75,7 @@ To do this, press `m` followed by the loop number, then the factor to which you 
 #### Examples
 
 | Operation | Outcome                          |
-| --------- | -------------------------------- |
+| :-------- | :------------------------------- |
 | `m32`     | Loop 3's length is multiplied 2x |
 | `m55`     | Loop 5's length is multiplied 5x |
 
@@ -84,10 +84,10 @@ To do this, press `m` followed by the loop number, then the factor to which you 
 Need to get rid of the MIDI data but keep the loop length? Just type `c` followed by the loop number you want to clean out.
 
 #### Example
-| Operation | Outcome                          |
-| --------- | -------------------------------- |
-| `c1`     | Loop 1's MIDI data is removed     |
-| `c2`     | Loop 2's MIDI data is removed     |
+| Operation | Outcome                       |
+| --------- | :---------------------------- |
+| `c1`      | Loop 1's MIDI data is removed |
+| `c2`      | Loop 2's MIDI data is removed |
 
 ---
 
