@@ -46,6 +46,10 @@ If you want to add to an existing loop:
 ### Play/Pause
 
 While holding `Shift` and press a number to play/pause that loop.
+### Input Display
+
+At any point you can prss `~` to see what data is being captured. A running log of all incoming data will stream down in the background.
+
 ## Operations
 
 There are three main operations that will allow your to manipulate loops. Their primary purpose, for now, is to manipulate the length of loops. The constraint is to keep it within 3 key strokes. Since there are only 9 loops possible, its easy to have a formula of an operation plus two modifiers: `[op][mod][mod]` where `op` is the operation and `mod` is a single digit 0-9.
@@ -91,4 +95,6 @@ Need to get rid of the MIDI data but keep the loop length? Just type `c` followe
 
 ---
 
-If you make something cool, toot it at me on [Mastodon](https://merveilles.town/deck/@levibeach).
+**NOTE:** This app is provided without any guarentee of actually working on yours or anyone else's machine. It's a continuous work-in-progress, so if you find a bug let me know.
+
+Also, if you make something cool, toot it at me on [Mastodon](https://merveilles.town/deck/@levibeach).
