@@ -6,10 +6,12 @@ const midi = require('midi')
 const midiMap = require('./midimap.js')
 const motion = require('./motion.js')
 
-const logFile = path.join(__dirname, 'log.txt')
+const logFile = path.join(__dirname, 'session.txt')
 
 const midiIn = new midi.Input()
 const midiOut = new midi.Output()
+
+// modify these to whatever midi ports you will be using
 let midiInPort = 1
 let midiOutPort = 1
 
@@ -49,29 +51,59 @@ const loopList = blessed.box({
   height: 5
 })
 
-const debug = blessed.log({
+const inputDisplay = blessed.log({
 	parent: screen,
 	top: 0,
 	left: 0,
 	mouse: false,
 	width: `100%`,
 	height: `100%`,
-	scrollback: 0,
+	scrollback: screen.height,
 	tags: true,
 	style: { fg: 'black' },
 	hidden: true
 })
 
-function log(msg) {
-	debug.log(`${msg}`)
+function setupLogs() {
+ 	try {
+		fs.open(logFile, 'wx', (err, fd) => {
+			if (err) {
+				if (err.code === 'EEXIST') {
+					console.error('File already exists')
+		    } else {
+		      console.error('Error opening file:', err)
+		    }
+		    return
+		  }
+		  fs.write(fd, '', (err) => {
+		  	if (err) {
+		  		console.error('Error writing to file:', err)
+		    }
+		   	fs.close(fd, (err) => {
+		    	if (err) console.error('Error closing file:', err)
+		    })
+		  })
+		})
+		fs.truncate(logFile, 0, (err) => {
+	    if (err) {
+	        console.error('Error truncating the file:', err);
+	    }
+		});
+		
+ 	} catch (err) {
+ 		console.error(err)
+ 	} finally {
+ 		writeLog(`KRAIT ${new Date().toString()}`)
+ 	}
+	
 }
 
 function writeLog(message) {
   const timestamp = new Date().toISOString()
-  const logMessage = `${timestamp}| ${message}\n`
+  const logMessage = `${timestamp} - ${message}\n`
   fs.appendFile(logFile, logMessage, (err) => {
   	if (err) {
-  		log(`Failed to write to log file: ${err}`)
+  		writeLog(`Failed to write to log file: ${err}`)
   	}
   })
 }
@@ -140,7 +172,7 @@ function toggleArmed(lid) {
   if (armed) {
     if (recording) {
       stopRecord()
-      log(`loop ${armed.id + 1}: ${armed.data.size} events`)
+      writeLog(`loop ${armed.id + 1}: ${armed.data.size} events`)
     }
     armed.label.style.fg = !armed.loopLength ? 'black' : 'default'
     armed = null
@@ -223,27 +255,26 @@ function initMidiIo() {
 		// connect to midi ports
 	  midiIn.openPort(midiInPort)
 	  midiOut.openPort(midiOutPort)
-		// log('looking for MIDI ports…')
+		writeLog('looking for MIDI ports…')
 	  for (var i = 0; i < midiIn.getPortCount(); ++i) {
 	    writeLog(`IN ${i}: ${midiIn.getPortName(i)}`)
 	  }
 	  for (var i = 0; i < midiOut.getPortCount(); ++i) {
 	    writeLog(`OUT ${i}: ${midiOut.getPortName(i)}`)
 	  }
-	  // log('ports need to be configured in the code\nmaybe someday it will be configurable')
 	} catch (err) {
-		log(err)
+		writeLog(err)
 	}
 }
 
 /**
  * Duplicates a loop to another loop slot
- * but does not include any messages
+ * Does not include any MIDI messages in the new loop
  * @param {number} a The target loop
  * @param {number} b The destination loop
  */
 function duplicate(a,b) {
-	log(`loop ${a} → loop ${b}`)
+	writeLog(`loop ${a} → loop ${b}`)
 	try {
   	a = a - 1
   	b = b - 1
@@ -305,7 +336,7 @@ function multiply(a,f) {
  * @param {number} f The factor to divide
  */
 function trim(a,f) {
-	log(`loop ${a} / ${f}`)
+	writeLog(`loop ${a} / ${f}`)
 	try {
 		const loop = loops.get(a - 1)
 		const newLength = loop.loopLength / f
@@ -325,8 +356,12 @@ function trim(a,f) {
 	}
 }
 
+/**
+ * Cleans out all events in a given loop
+ * @param {number} a The target loop
+ */
 function clean(a) {
-	log(`loop ${a} cleaned`)
+	writeLog(`loop ${a} cleaned`)
 	const loop = loops.get(a - 1)
 	loop.data = new Map()
 	runMotion('clean', loop)
@@ -377,18 +412,17 @@ function runSequence() {
 }
 
 function init() {
-	debug.setContent('░▒▓█ BOOTING KRAIT  █▓▒░')
-	
+	setupLogs()
+
   // add empty loops
   initLoops()
-  
+ 
   // connect to midi and setup options
   initMidiIo()
 
   midiIn.on('message', (deltaTime, message) => {
-    // log(`RAW: ${message}`)
     if (Object.keys(midiMap).includes(`${message[0]}`)) {
-    	// log(`${message} | ${midiMap[message[0]].type}`)
+    	inputDisplay.log(`${message} | ${midiMap[message[0]].type}`)
       if (armed) {
         if (!recording) recordLoop()
         // when a data point already exists
@@ -425,7 +459,6 @@ function init() {
     if (!loops.has(k)) return
     const loop = loops.get(k)
     loop.playing ? stopLoop(k) : startLoop(k)
-    log(`loop ${k+1} ${loop.playing ? 'restarted' : 'paused'}`)
   })
 
 	// toggle delete action on/off
@@ -446,15 +479,14 @@ function init() {
   	toggleReset(false)
   })
 
-  screen.key(['`'], () => debug.toggle())
+  screen.key(['`'], () => inputDisplay.toggle())
 
   // send sound off for all channels
   // won't work in some configurations with
   // external hardware
   screen.key([0], () => {
-    log('turning off all sound')
     for (let chan = 0; chan < 16; chan++) {
-      log(`turning off ${chan} sounds`)
+      writeLog(`turning off ${chan} sounds`)
       midiOut.sendMessage([0xB0 + chan, 123, 0])
     }
   })
@@ -465,7 +497,7 @@ function init() {
     l = (l + 1) % motion.record.length
   }, midiRate)
 
-  log('░▒▓█ KRAIT IS READY █▓▒░')
+  inputDisplay.log('░▒▓█ KRAIT IS READY █▓▒░')
 }
 
 init()
