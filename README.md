@@ -93,8 +93,8 @@ To do this, press `t` followed by the loop number, then the factor to which you 
 
 | Operation | Outcome                          |
 | :-------- | :------------------------------- |
-| `t42`     | Loop 3's length is cut in half   |
-| `t63`     | Loop 5's length is cut to a 3rd |
+| `t42`     | Loop 4's length is cut in half   |
+| `t63`     | Loop 6's length is cut to a 3rd |
 
 ### (C)lean
 
