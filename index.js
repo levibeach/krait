@@ -137,28 +137,30 @@ function stopRecord() {
 
 function startLoop(lid) {
 	const loop = loops.get(lid)
-	loop.playing = true
-	if (overdub) {
-		overdub = false
-	} else {
-		loop.frame = 0
-	}
+	if (!loop) return
+
+	loop.playing = true;
+	loop.frame = overdub ? loop.frame : 0
+	overdub = false
+
 	if (!loop.loopLength) {
 		writeLog('loop has no length')
 		return
 	}
+
 	loop.interval = setInterval(() => {
 		const frameRatio = loop.frame / loop.loopLength
 		const keyframe = Math.ceil(playbackLength * frameRatio)
+
 		if (!loop.animating) {
 			loop.display.setContent(motion.playback[keyframe])
 		}
-		if (loop.data.has(loop.frame)) {
-			loop.data.get(loop.frame).forEach((item) => {
-				midiOut.sendMessage(item)
-			})
-		}
-		loop.frame = (loop.frame + 1) % loop.loopLength
+
+		loop.data.get(loop.frame)?.forEach((item) => {
+			midiOut.sendMessage(item)
+		})
+
+		loop.frame = (loop.frame + 1) % loop.loopLength;
 	}, midiRate)
 }
 
