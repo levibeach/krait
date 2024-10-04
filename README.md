@@ -83,6 +83,19 @@ To do this, press `m` followed by the loop number, then the factor to which you 
 | `m32`     | Loop 3's length is multiplied 2x |
 | `m55`     | Loop 5's length is multiplied 5x |
 
+### (T)rim
+
+Trim down the length of a loop by a factor.
+
+To do this, press `t` followed by the loop number, then the factor to which you want to trim its length.
+
+#### Examples
+
+| Operation | Outcome                          |
+| :-------- | :------------------------------- |
+| `t42`     | Loop 3's length is cut in half   |
+| `t63`     | Loop 5's length is cut to a 3rd |
+
 ### (C)lean
 
 Need to get rid of the MIDI data but keep the loop length? Just type `c` followed by the loop number you want to clean out.
