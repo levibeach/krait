@@ -10,10 +10,7 @@ const logFile = path.join(__dirname, 'session.txt')
 
 const midiIn = new midi.Input()
 const midiOut = new midi.Output()
-
-// modify these to whatever midi ports you will be using
-let midiInPort = 1
-let midiOutPort = 1
+const ports = { in: 0, out: 0 } 
 
 const playbackLength = motion.playback.length - 1
 const loops = new Map()
@@ -23,9 +20,7 @@ let overdub = false
 let action = false
 let sequence = ''
 let armReset = false
-let midiRate = 25 // ¯\_(ツ)_/¯
-// probably a better way to do this
-// but mapping the shift keys works for now…
+let midiRate = 25
 const shiftKeys = {
 	'!': 1,
 	'@': 2,
@@ -44,13 +39,6 @@ const screen = blessed.screen({
 	fastCSR: true
 })
 
-const loopList = blessed.box({
-	top: 'center',
-	left: 'center',
-	width: 44,
-	height: 5
-})
-
 const inputDisplay = blessed.log({
 	parent: screen,
 	top: 0,
@@ -62,6 +50,68 @@ const inputDisplay = blessed.log({
 	tags: true,
 	style: {fg: 'black'},
 	hidden: true
+})
+
+const loopList = blessed.box({
+	parent: screen,
+	top: 'center',
+	left: 'center',
+	width: 44,
+	height: 5
+})
+
+const menuProps = {
+  parent: screen,
+	border: {
+		type: 'line'
+	},
+	style: {
+	  focus: {
+	  	selected: {
+	  		bg: 'yellow'
+	  	},
+	  	border: {
+	  		fg: 'white'
+	  	},
+	  	fg: 'white'
+	  }
+	},
+	keys: true,
+	mouse: true,
+	interactive: true,
+	hidden: true
+}
+
+const menu = blessed.list({
+	...menuProps,
+	label: 'Menu',
+	width: 20,
+	height: 'shrink',
+	items: [
+		'MIDI In',
+		'MIDI Out',
+		'Close',
+		'Quit'
+	]
+})
+
+const midiInSetting = blessed.list({
+	...menuProps,
+	label:'MIDI In',
+	left: 20,
+	top: 0,
+	width: 30,
+	height: 'shrink',
+	items: [],
+})
+const midiOutSetting = blessed.list({
+  ...menuProps,
+	label: 'MIDI Out',
+	left: 20,
+	top: 0,
+	width: 30,
+	height: 'shrink',
+	items: [],
 })
 
 function setupLogs() {
@@ -86,9 +136,9 @@ function setupLogs() {
 		})
 		fs.truncate(logFile, 0, (err) => {
 			if (err) {
-				console.error('Error truncating the file:', err);
+				console.error('Error truncating the file:', err)
 			}
-		});
+		})
 
 	} catch (err) {
 		console.error(err)
@@ -139,7 +189,7 @@ function startLoop(lid) {
 	const loop = loops.get(lid)
 	if (!loop) return
 
-	loop.playing = true;
+	loop.playing = true
 	loop.frame = overdub ? loop.frame : 0
 	overdub = false
 
@@ -160,7 +210,7 @@ function startLoop(lid) {
 			midiOut.sendMessage(item)
 		})
 
-		loop.frame = (loop.frame + 1) % loop.loopLength;
+		loop.frame = (loop.frame + 1) % loop.loopLength
 	}, midiRate)
 }
 
@@ -224,7 +274,6 @@ function initLoops() {
 	for (let i = 0; i < 9; i++) {
 		setLoop(i)
 	}
-	screen.append(loopList)
 }
 
 function resetLoop(lid) {
@@ -248,24 +297,6 @@ function toggleReset(val) {
 		for (let i = 0; i < 9; i++) {
 			loops.get(i).label.setContent('————')
 		}
-	}
-}
-
-function initMidiIo() {
-	try {
-		const options = {}
-		// connect to midi ports
-		midiIn.openPort(midiInPort)
-		midiOut.openPort(midiOutPort)
-		writeLog('looking for MIDI ports…')
-		for (var i = 0; i < midiIn.getPortCount(); ++i) {
-			writeLog(`IN ${i}: ${midiIn.getPortName(i)}`)
-		}
-		for (var i = 0; i < midiOut.getPortCount(); ++i) {
-			writeLog(`OUT ${i}: ${midiOut.getPortName(i)}`)
-		}
-	} catch (err) {
-		writeLog(err)
 	}
 }
 
@@ -413,6 +444,67 @@ function runSequence() {
 	}
 }
 
+function changeMidiPort(dest, port) {
+	switch(dest) {
+		case 'in':
+			const checkIn = setInterval(()=>{
+				if(!midiIn.isPortOpen()) {
+	   			midiIn.openPort(port)
+	   			writeLog(`MIDI in changed to port: ${port}`)
+					clearInterval(checkIn)
+					midiInSetting.hide()
+					menu.focus()
+				} else {
+					midiIn.closePort()
+				}
+			}, 100)
+			break
+		case 'out':
+	    const checkOut = setInterval(()=>{
+ 				if(!midiOut.isPortOpen()) {
+ 	   			midiOut.openPort(port)
+ 	   			writeLog(`MIDI out changed to port: ${port}`)
+ 					clearInterval(checkOut)
+ 					midiOutSetting.hide()
+ 					menu.focus()
+ 				} else {
+ 					 midiOut.closePort()
+ 				}
+ 			}, 100)
+			break
+		default:
+			// do nothing i guess...
+	}
+}
+
+function initMidiIo() {
+	try {
+		const options = {}
+		// connect to midi ports
+		writeLog('looking for MIDI ports…')
+		for (var i = 0; i < midiIn.getPortCount(); ++i) {
+			const portName = midiIn.getPortName(i)
+			midiInSetting.addItem(`${i}: ${portName}`)
+			writeLog(`In ${i}: ${midiIn.getPortName(i)}`)
+		}
+		for (var i = 0; i < midiOut.getPortCount(); ++i) {
+			const portName = midiIn.getPortName(i)
+			midiOutSetting.addItem(`${i}: ${portName}`)
+			writeLog(`Out ${i}: ${midiOut.getPortName(i)}`)
+		}
+		midiIn.openPort(ports.in)
+		midiOut.openPort(ports.out)
+		midiInSetting.on('select', function(item, index) {
+			changeMidiPort('in', index)
+		})
+		midiOutSetting.on('select', function(item, index) {
+			changeMidiPort('out', index)
+		})
+	} catch (err) {
+		writeLog(err)
+	}
+}
+
 function init() {
 	setupLogs()
 
@@ -421,6 +513,24 @@ function init() {
 
 	// connect to midi and setup options
 	initMidiIo()
+
+	menu.on('select', function(item, index) {
+		switch(item.getText()) {
+			case 'MIDI In':
+				midiInSetting.show()
+				midiInSetting.focus()
+				break
+			case 'MIDI Out':
+				midiOutSetting.show()
+				midiOutSetting.focus()
+				break
+			case 'Quit':
+				process.exit()
+				break
+			default:
+				menu.hide()
+		}
+	})
 
 	midiIn.on('message', (deltaTime, message) => {
 		if (Object.keys(midiMap).includes(`${message[0]}`)) {
@@ -473,12 +583,27 @@ function init() {
 		sequence = ch
 	})
 
+	screen.key(['C-d'], (ch, key) => {
+		menu.toggle()
+		menu.focus()
+	})
+
 	// quit on Escape, q, or Control-C.
 	screen.key(['C-q', 'C-c'], () => process.exit())
 
 	screen.key(['escape'], () => {
-		if (armed) toggleArmed(armed.id)
-		toggleReset(false)
+		if (!menu.hidden) {
+			if (!midiInSetting.hidden || !midiOutSetting.hidden) {
+				midiInSetting.hide()
+				midiOutSetting.hide()
+				menu.focus()
+			} else {
+				menu.hide()
+			}
+		} else {
+			if (armed) toggleArmed(armed.id)
+			toggleReset(false)
+		}
 	})
 
 	screen.key(['`'], () => inputDisplay.toggle())
