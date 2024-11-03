@@ -1,15 +1,20 @@
 {
   "name": "krait",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "A command line MIDI looper",
   "main": "index.js",
   "scripts": {
-    "start": "node index"
+    "dev": "node ./index.js",
+    "hotdev": "nodemon -I node ./index.js"
+  },
+  "bin": {
+    "krait": "./index.js"
   },
   "author": "Levi Beach",
   "license": "MIT",
   "dependencies": {
     "blessed": "^0.1.81",
-    "midi": "^2.0.0"
+    "midi": "^2.0.0",
+    "nodemon": "^3.1.7"
   }
 }
