@@ -112,35 +112,21 @@ const midiOutSetting = blessed.list({
 })
 
 function setupLogs() {
-  try {
-    fs.open(logFile, 'wx', (err, fd) => {
-      if (err) {
-        if (err.code === 'EEXIST') {
-					// do nothing; file already exists
-        } else {
-          console.error('Error opening file:', err)
-        }
-        return
-      }
-      fs.write(fd, '', (err) => {
-        if (err) {
-          console.error('Error writing to file:', err)
-        }
-        fs.close(fd, (err) => {
-          if (err) console.error('Error closing file:', err)
-        })
-      })
-    })
-    fs.truncate(logFile, 0, (err) => {
-      if (err) {
-        console.error('Error truncating the file:', err)
-      }
-    })
-  } catch (err) {
-    console.error(err)
-  } finally {
-    writeLog(`KRAIT ${new Date().toString()}`)
-  }
+	fs.open(logFile, 'a', (err, fd) => {
+		if (err) {
+			console.error('Error opening file:', err)
+			return
+		}
+		fs.ftruncate(fd, 0, (err) => {
+			if (err) {
+				console.error('Error truncating the file:', err)
+			}
+			fs.close(fd, (err) => {
+				if (err) console.error('Error closing file:', err)
+			})
+		})
+	})
+	writeLog(`KRAIT ${new Date().toString()}`)
 }
 
 function writeLog(message) {
@@ -412,8 +398,8 @@ function clean(a) {
 function runMotion(a, loop) {
   let k = 0
   loop.animating = true
-  let anima = setInterval(() => {
-    if (k > motion[a].length - 1) {
+  const anima = setInterval(() => {
+    if (k >= motion[a].length) {
       loop.animating = false
       clearInterval(anima)
     } else {
@@ -488,27 +474,21 @@ function changeMidiPort(dest, port) {
 
 function initMidiIo() {
   try {
-    const options = {}
-    // connect to midi ports
     writeLog('looking for MIDI ports…')
-    for (var i = 0; i < midiIn.getPortCount(); ++i) {
+    for (let i = 0; i < midiIn.getPortCount(); i++) {
       const portName = midiIn.getPortName(i)
       midiInSetting.addItem(`${i}: ${portName}`)
-      writeLog(`In ${i}: ${midiIn.getPortName(i)}`)
+      writeLog(`In ${i}: ${portName}`)
     }
-    for (var i = 0; i < midiOut.getPortCount(); ++i) {
-      const portName = midiIn.getPortName(i)
+    for (let i = 0; i < midiOut.getPortCount(); i++) {
+      const portName = midiOut.getPortName(i)
       midiOutSetting.addItem(`${i}: ${portName}`)
-      writeLog(`Out ${i}: ${midiOut.getPortName(i)}`)
+      writeLog(`Out ${i}: ${portName}`)
     }
     midiIn.openPort(ports.in)
     midiOut.openPort(ports.out)
-    midiInSetting.on('select', function (item, index) {
-      changeMidiPort('in', index)
-    })
-    midiOutSetting.on('select', function (item, index) {
-      changeMidiPort('out', index)
-    })
+    midiInSetting.on('select', (item, index) => changeMidiPort('in', index))
+    midiOutSetting.on('select', (item, index) => changeMidiPort('out', index))
   } catch (err) {
     writeLog(err)
   }
