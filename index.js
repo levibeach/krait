@@ -12,9 +12,10 @@ const logFile = path.join(__dirname, 'session.txt')
 
 const midiIn = new midi.Input()
 const midiOut = new midi.Output()
-midiIn.openVirtualPort('KRAIT:IN')
-midiOut.openVirtualPort('KRAIT:OUT')
-const ports = { in: 0, out: 0 }
+const ports = { 
+	in: 0, 
+	out: 0 
+}
 
 const playbackLength = motion.playback.length - 1
 const loops = new Map()
@@ -29,7 +30,7 @@ const shiftKeys = {
   '!': 1,
   '@': 2,
   '#': 3,
-	'$': 4,
+  '$': 4,
   '%': 5,
   '^': 6,
   '&': 7,
@@ -72,7 +73,8 @@ const menuProps = {
   style: {
     focus: {
       selected: {
-        bg: 'yellow',
+      	fg: 'black',
+        bg: 'white',
       },
       border: {
         fg: 'white',
@@ -91,7 +93,12 @@ const menu = blessed.list({
   label: 'Menu',
   width: 20,
   height: 'shrink',
-  items: ['MIDI In', 'MIDI Out', 'Close', 'Quit'],
+  items: [
+  	'MIDI In', 
+  	'MIDI Out', 
+  	'Close', 
+  	'Quit',
+  ],
 })
 
 const midiInSetting = blessed.list({
@@ -139,6 +146,19 @@ function writeLog(message) {
       writeLog(`Failed to write to log file: ${err}`)
     }
   })
+}
+
+function throttle(func, limit) {
+  let inThrottle
+  return function () {
+    const args = arguments
+    const context = this
+    if (!inThrottle) {
+      func.apply(context, args)
+      inThrottle = true
+      setTimeout(() => (inThrottle = false), limit)
+    }
+  }
 }
 
 function recordLoop() {
@@ -475,6 +495,9 @@ function changeMidiPort(dest, port) {
 }
 
 function initMidiIo() {
+	midiIn.openVirtualPort('KRAIT:IN')
+	midiOut.openVirtualPort('KRAIT:OUT')
+	
   try {
     writeLog('looking for MIDI ports…')
     for (let i = 0; i < midiIn.getPortCount(); i++) {
@@ -496,6 +519,11 @@ function initMidiIo() {
   }
 }
 
+function showFocus(el) {
+	el.show()
+	el.focus()
+}
+
 function init() {
   setupLogs()
 
@@ -508,12 +536,10 @@ function init() {
   menu.on('select', function (item, index) {
     switch (item.getText()) {
       case 'MIDI In':
-        midiInSetting.show()
-        midiInSetting.focus()
+        showFocus(midiInSetting)
         break
       case 'MIDI Out':
-        midiOutSetting.show()
-        midiOutSetting.focus()
+        showFocus(midiOutSetting)
         break
       case 'Quit':
         process.exit()
