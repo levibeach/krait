@@ -12,6 +12,8 @@ const logFile = path.join(__dirname, 'session.txt')
 
 const midiIn = new midi.Input()
 const midiOut = new midi.Output()
+midiIn.openVirtualPort('KRAIT:IN')
+midiOut.openVirtualPort('KRAIT:OUT')
 const ports = { in: 0, out: 0 }
 
 const playbackLength = motion.playback.length - 1
@@ -112,21 +114,21 @@ const midiOutSetting = blessed.list({
 })
 
 function setupLogs() {
-	fs.open(logFile, 'a', (err, fd) => {
-		if (err) {
-			console.error('Error opening file:', err)
-			return
-		}
-		fs.ftruncate(fd, 0, (err) => {
-			if (err) {
-				console.error('Error truncating the file:', err)
-			}
-			fs.close(fd, (err) => {
-				if (err) console.error('Error closing file:', err)
-			})
-		})
-	})
-	writeLog(`KRAIT ${new Date().toString()}`)
+  fs.open(logFile, 'a', (err, fd) => {
+    if (err) {
+      console.error('Error opening file:', err)
+      return
+    }
+    fs.ftruncate(fd, 0, (err) => {
+      if (err) {
+        console.error('Error truncating the file:', err)
+      }
+      fs.close(fd, (err) => {
+        if (err) console.error('Error closing file:', err)
+      })
+    })
+  })
+  writeLog(`KRAIT ${new Date().toString()}`)
 }
 
 function writeLog(message) {
@@ -538,6 +540,7 @@ function init() {
     }
   })
 
+  // THE BRAIN
   screen.key([1, 2, 3, 4, 5, 6, 7, 8, 9], (ch, key) => {
     if (!action) {
       const lid = parseInt(ch) - 1
