@@ -2,7 +2,6 @@
 
 <img src="https://upload.wikimedia.org/wikipedia/commons/5/55/Red-headed_Krait.jpg" alt="Red-headed krait snake" width="400"/>
 
-
 Krait is a small command line application that records and plays MIDI messages.
 
 **WARNING:** This is a work-in-progress and was created fairly quickly so use at your own risk.
@@ -17,7 +16,7 @@ cd krait
 npm install
 npm run start
 # OR
-node index
+node ./src/main.js
 ```
 
 ## Usages
@@ -30,8 +29,8 @@ The idea is to quickly arm and record loops:
 
 1. Select a loop by pressing any number key 1-9.
 2. The loop you selected will highlight indicating that it is ready to record (armed).
-2. As soon as a MIDI signal is detected from the MIDI in it will start recording messages to the loop.
-3. When you want to stop the recording, just press the same number key again.
+3. As soon as a MIDI signal is detected from the MIDI in it will start recording messages to the loop.
+4. When you want to stop the recording, just press the same number key again.
 
 After you have stopped recording the loop will immediately start playing so that there is virtually no pause when looping in a live session.
 
@@ -46,6 +45,7 @@ If you want to add to an existing loop:
 ### Play/Pause
 
 While holding `Shift` and press a number to play/pause that loop.
+
 ### Input Display
 
 At any point you can prss `~` to see what data is being captured. A running log of all incoming data will stream down in the background.
@@ -54,10 +54,9 @@ At any point you can prss `~` to see what data is being captured. A running log 
 
 There are three main operations that will allow your to manipulate loops. Their primary purpose, for now, is to manipulate the length of loops. The constraint is to keep it within 3 key strokes. Since there are only 9 loops possible, its easy to have a formula of an operation plus two modifiers: `[op][mod][mod]` where `op` is the operation and `mod` is a single digit 0-9.
 
-
 ### (D)uplicate
 
-In some situations you want a clone of a loop with none of the data (i.e. an empty loop of the same length as another one). 
+In some situations you want a clone of a loop with none of the data (i.e. an empty loop of the same length as another one).
 
 To do this, press `d` followed by the loop number, then the destination loop slot.
 
@@ -91,9 +90,9 @@ To do this, press `t` followed by the loop number, then the factor to which you 
 
 #### Examples
 
-| Operation | Outcome                          |
-| :-------- | :------------------------------- |
-| `t42`     | Loop 4's length is cut in half   |
+| Operation | Outcome                         |
+| :-------- | :------------------------------ |
+| `t42`     | Loop 4's length is cut in half  |
 | `t63`     | Loop 6's length is cut to a 3rd |
 
 ### (C)lean
@@ -101,6 +100,7 @@ To do this, press `t` followed by the loop number, then the factor to which you 
 Need to get rid of the MIDI data but keep the loop length? Just type `c` followed by the loop number you want to clean out.
 
 #### Example
+
 | Operation | Outcome                       |
 | --------- | :---------------------------- |
 | `c1`      | Loop 1's MIDI data is removed |
