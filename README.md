@@ -1,6 +1,6 @@
 # KRAIT
 
-<img src="https://upload.wikimedia.org/wikipedia/commons/5/55/Red-headed_Krait.jpg" alt="Red-headed krait snake" width="400"/>
+![Kapture 2024-09-03 at 08 51 09](https://github.com/user-attachments/assets/6e8f19eb-0b9c-40b4-bba7-880c18ae3a54)
 
 Krait is a small command line application that records and plays MIDI messages.
 
@@ -20,8 +20,6 @@ node ./src/main.js
 ```
 
 ## Usages
-
-![Kapture 2024-09-03 at 08 51 09](https://github.com/user-attachments/assets/6e8f19eb-0b9c-40b4-bba7-880c18ae3a54)
 
 ### Arming & Recording
 
