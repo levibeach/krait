@@ -1,20 +1,18 @@
 #!/usr/bin/env node
 
 // time is an illusion
-const fs = require('fs')
-const path = require('path')
 const blessed = require('blessed')
 const midi = require('midi')
-const midiMap = require('./midimap.js')
-const motion = require('./motion.js')
-
-const logFile = path.join(__dirname, 'session.txt')
+const midiMap = require('./data/midimap.js')
+const motion = require('./data/motion.js')
+const Logger = require('./utils/logger.js')
+const debug = new Logger()
 
 const midiIn = new midi.Input()
 const midiOut = new midi.Output()
-const ports = { 
-	in: 0, 
-	out: 0 
+const ports = {
+  in: 0,
+  out: 0,
 }
 
 const playbackLength = motion.playback.length - 1
@@ -30,7 +28,7 @@ const shiftKeys = {
   '!': 1,
   '@': 2,
   '#': 3,
-  '$': 4,
+  $: 4,
   '%': 5,
   '^': 6,
   '&': 7,
@@ -73,7 +71,7 @@ const menuProps = {
   style: {
     focus: {
       selected: {
-      	fg: 'black',
+        fg: 'black',
         bg: 'white',
       },
       border: {
@@ -93,12 +91,7 @@ const menu = blessed.list({
   label: 'Menu',
   width: 20,
   height: 'shrink',
-  items: [
-  	'MIDI In', 
-  	'MIDI Out', 
-  	'Close', 
-  	'Quit',
-  ],
+  items: ['MIDI In', 'MIDI Out', 'Close', 'Quit'],
 })
 
 const midiInSetting = blessed.list({
@@ -119,34 +112,6 @@ const midiOutSetting = blessed.list({
   height: 'shrink',
   items: [],
 })
-
-function setupLogs() {
-  fs.open(logFile, 'a', (err, fd) => {
-    if (err) {
-      console.error('Error opening file:', err)
-      return
-    }
-    fs.ftruncate(fd, 0, (err) => {
-      if (err) {
-        console.error('Error truncating the file:', err)
-      }
-      fs.close(fd, (err) => {
-        if (err) console.error('Error closing file:', err)
-      })
-    })
-  })
-  writeLog(`KRAIT ${new Date().toString()}`)
-}
-
-function writeLog(message) {
-  const timestamp = new Date().toISOString()
-  const logMessage = `${timestamp} - ${message}\n`
-  fs.appendFile(logFile, logMessage, (err) => {
-    if (err) {
-      writeLog(`Failed to write to log file: ${err}`)
-    }
-  })
-}
 
 function throttle(func, limit) {
   let inThrottle
@@ -197,7 +162,7 @@ function startLoop(lid) {
   overdub = false
 
   if (!loop.loopLength) {
-    writeLog('loop has no length')
+    debug.log('loop has no length')
     return
   }
 
@@ -227,7 +192,7 @@ function toggleArmed(lid) {
   if (armed) {
     if (recording) {
       stopRecord()
-      writeLog(`loop ${armed.id + 1}: ${armed.data.size} events`)
+      debug.log(`loop ${armed.id + 1}: ${armed.data.size} events`)
     }
     armed.label.style.fg = !armed.loopLength ? 'black' : 'default'
     armed = null
@@ -308,7 +273,7 @@ function toggleReset(val) {
  * @param {number} b The destination loop
  */
 function duplicate(a, b) {
-  writeLog(`loop ${a} → loop ${b}`)
+  debug.log(`loop ${a} → loop ${b}`)
   try {
     a = a - 1
     b = b - 1
@@ -320,7 +285,7 @@ function duplicate(a, b) {
     loopB.label.style.fg = 'default'
     runMotion('duplicate', loopB)
 
-    writeLog(
+    debug.log(
       JSON.stringify(
         {
           id: loopB.id,
@@ -341,7 +306,7 @@ function duplicate(a, b) {
       }
     }, 10)
   } catch (err) {
-    writeLog(err)
+    debug.log(err)
   }
 }
 
@@ -357,7 +322,7 @@ function multiply(a, f) {
     loop.loopLength = newLength
     runMotion('multiply', loop)
 
-    writeLog(
+    debug.log(
       JSON.stringify(
         {
           id: loop.id,
@@ -371,7 +336,7 @@ function multiply(a, f) {
       )
     )
   } catch (err) {
-    writeLog(err)
+    debug.log(err)
   }
 }
 
@@ -381,14 +346,14 @@ function multiply(a, f) {
  * @param {number} f The factor to divide
  */
 function trim(a, f) {
-  writeLog(`loop ${a} / ${f}`)
+  debug.log(`loop ${a} / ${f}`)
   try {
     const loop = loops.get(a - 1)
     const newLength = loop.loopLength / f
     loop.loopLength = newLength
     runMotion('trim', loop)
 
-    writeLog(
+    debug.log(
       JSON.stringify(
         {
           id: loop.id,
@@ -402,7 +367,7 @@ function trim(a, f) {
       )
     )
   } catch (err) {
-    writeLog(err)
+    debug.log(err)
   }
 }
 
@@ -411,7 +376,7 @@ function trim(a, f) {
  * @param {number} a The target loop
  */
 function clean(a) {
-  writeLog(`loop ${a} cleaned`)
+  debug.log(`loop ${a} cleaned`)
   const loop = loops.get(a - 1)
   loop.data = new Map()
   runMotion('clean', loop)
@@ -454,7 +419,7 @@ function runSequence() {
         return
     }
   } catch (err) {
-    writeLog(err)
+    debug.log(err)
   } finally {
     action = false
     sequence = ''
@@ -467,7 +432,7 @@ function changeMidiPort(dest, port) {
       const checkIn = setInterval(() => {
         if (!midiIn.isPortOpen()) {
           midiIn.openPort(port)
-          writeLog(`MIDI in changed to port: ${port}`)
+          debug.log(`MIDI in changed to port: ${port}`)
           clearInterval(checkIn)
           midiInSetting.hide()
           menu.focus()
@@ -480,7 +445,7 @@ function changeMidiPort(dest, port) {
       const checkOut = setInterval(() => {
         if (!midiOut.isPortOpen()) {
           midiOut.openPort(port)
-          writeLog(`MIDI out changed to port: ${port}`)
+          debug.log(`MIDI out changed to port: ${port}`)
           clearInterval(checkOut)
           midiOutSetting.hide()
           menu.focus()
@@ -495,38 +460,33 @@ function changeMidiPort(dest, port) {
 }
 
 function initMidiIo() {
-	midiIn.openVirtualPort('KRAIT:IN')
-	midiOut.openVirtualPort('KRAIT:OUT')
-	
+  midiIn.openVirtualPort('KRAIT:IN')
+  midiOut.openVirtualPort('KRAIT:OUT')
+
   try {
-    writeLog('looking for MIDI ports…')
     for (let i = 0; i < midiIn.getPortCount(); i++) {
       const portName = midiIn.getPortName(i)
       midiInSetting.addItem(`${i}: ${portName}`)
-      writeLog(`In ${i}: ${portName}`)
     }
     for (let i = 0; i < midiOut.getPortCount(); i++) {
       const portName = midiOut.getPortName(i)
       midiOutSetting.addItem(`${i}: ${portName}`)
-      writeLog(`Out ${i}: ${portName}`)
     }
     midiIn.openPort(ports.in)
     midiOut.openPort(ports.out)
     midiInSetting.on('select', (item, index) => changeMidiPort('in', index))
     midiOutSetting.on('select', (item, index) => changeMidiPort('out', index))
   } catch (err) {
-    writeLog(err)
+    debug.log(err)
   }
 }
 
 function showFocus(el) {
-	el.show()
-	el.focus()
+  el.show()
+  el.focus()
 }
 
 function init() {
-  setupLogs()
-
   // add empty loops
   initLoops()
 
@@ -543,7 +503,6 @@ function init() {
         break
       case 'Quit':
         process.exit()
-        break
       default:
         menu.hide()
     }
@@ -633,7 +592,7 @@ function init() {
   // external hardware
   screen.key([0], () => {
     for (let chan = 0; chan < 16; chan++) {
-      writeLog(`turning off ${chan} sounds`)
+      debug.log(`turning off ${chan} sounds`)
       midiOut.sendMessage([0xb0 + chan, 123, 0])
     }
   })
