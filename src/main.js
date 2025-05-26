@@ -28,7 +28,7 @@ const shiftKeys = {
   '!': 1,
   '@': 2,
   '#': 3,
-  $: 4,
+  '$': 4,
   '%': 5,
   '^': 6,
   '&': 7,
@@ -91,7 +91,12 @@ const menu = blessed.list({
   label: 'Menu',
   width: 20,
   height: 'shrink',
-  items: ['MIDI In', 'MIDI Out', 'Close', 'Quit'],
+  items: [
+  	'MIDI In', 
+  	'MIDI Out', 
+  	'Close', 
+  	'Quit'
+  ],
 })
 
 const midiInSetting = blessed.list({
@@ -194,7 +199,11 @@ function toggleArmed(lid) {
       stopRecord()
       debug.log(`loop ${armed.id + 1}: ${armed.data.size} events`)
     }
-    armed.label.style.fg = !armed.loopLength ? 'black' : 'default'
+    
+    armed.label.style.fg = !armed.loopLength 
+    	? 'black' 
+    	: 'default'
+    	
     armed = null
   } else {
     armed = loops.get(lid)
@@ -582,6 +591,7 @@ function init() {
     } else {
       if (armed) toggleArmed(armed.id)
       toggleReset(false)
+      action = false
     }
   })
 
