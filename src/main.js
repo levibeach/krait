@@ -28,6 +28,7 @@ const shiftKeys = {
   '!': 1,
   '@': 2,
   '#': 3,
+  // prettier-ignore
   '$': 4,
   '%': 5,
   '^': 6,
