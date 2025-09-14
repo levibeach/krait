@@ -89,20 +89,15 @@ const menuProps = {
 
 const menu = blessed.list({
   ...menuProps,
-  label: 'Menu',
+  label: '[ Menu ]',
   width: 20,
   height: 'shrink',
-  items: [
-  	'MIDI In', 
-  	'MIDI Out', 
-  	'Close', 
-  	'Quit'
-  ],
+  items: ['MIDI In', 'MIDI Out', 'Close Menu', 'Quit'],
 })
 
 const midiInSetting = blessed.list({
   ...menuProps,
-  label: 'MIDI In',
+  label: '[ MIDI In ]',
   left: 20,
   top: 0,
   width: 30,
@@ -111,7 +106,7 @@ const midiInSetting = blessed.list({
 })
 const midiOutSetting = blessed.list({
   ...menuProps,
-  label: 'MIDI Out',
+  label: '[ MIDI Out ]',
   left: 20,
   top: 0,
   width: 30,
@@ -200,11 +195,9 @@ function toggleArmed(lid) {
       stopRecord()
       debug.log(`loop ${armed.id + 1}: ${armed.data.size} events`)
     }
-    
-    armed.label.style.fg = !armed.loopLength 
-    	? 'black' 
-    	: 'default'
-    	
+
+    armed.label.style.fg = !armed.loopLength ? 'black' : 'default'
+
     armed = null
   } else {
     armed = loops.get(lid)
@@ -418,9 +411,13 @@ function runSequence() {
       case 'd':
         duplicate(a, b)
         break
+      case 'l':
+      // TODO: Create ability to load a saved sequence into a loop slot
       case 'm':
         multiply(a, b)
         break
+      case 's':
+      // TODO: Create ability to save a sequence to disk
       case 't':
         trim(a, b)
         break
@@ -555,6 +552,7 @@ function init() {
     }
   })
 
+  // stop/start loops
   screen.key(['!', '@', '#', '$', '%', '^', '&', '*', '('], (ch, key) => {
     const k = +(shiftKeys[ch] - 1)
     if (!loops.has(k)) return
@@ -567,7 +565,7 @@ function init() {
     toggleReset()
   })
 
-  screen.key(['c', 'd', 'm', 't'], (ch, key) => {
+  screen.key(['c', 'd', 'l', 'm', 's', 't'], (ch, key) => {
     action = true
     sequence = ch
   })
