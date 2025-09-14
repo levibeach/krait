@@ -604,6 +604,11 @@ function init() {
   screen.key([0], () => {
     for (let chan = 0; chan < 16; chan++) {
       debug.log(`turning off ${chan} sounds`)
+      // send 'note off' for all notes (0-127) on this channel
+      for (let note = 0; note < 128; note++) {
+        midiOut.sendMessage([0x80 + chan, note, 0])
+      }
+      // send 'all notes off' control change
       midiOut.sendMessage([0xb0 + chan, 123, 0])
     }
   })
