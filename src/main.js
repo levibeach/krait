@@ -14,6 +14,7 @@ const EventManager = require('./modules/events.js')
 // Initialize global systems
 const debug = new Logger()
 let l = 0 // motion counter
+const rate = 25
 
 /**
  * Initializes the main application logic for Krait.
@@ -44,13 +45,13 @@ function init() {
   events.setupEventListeners()
 
   // Start the main update loops
-  ui.startRenderLoop(25)
+  ui.startRenderLoop(rate)
 
   setInterval(() => {
     loops.setMotionCounter(l)
     if (!loops.armedLoop) return
     l = (l + 1) % motion.record.length
-  }, 25)
+  }, rate)
 
   ui.logger.log('░▒▓█ KRAIT IS READY █▓▒░')
 }
