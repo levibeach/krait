@@ -54,7 +54,7 @@ There are three main operations that will allow your to manipulate loops. Their 
 
 ### (D)uplicate
 
-In some situations you want a clone of a loop with none of the data (i.e. an empty loop of the same length as another one).
+In some situations you want a clone of a loop with none of the data (i.e. an empty loop of the same length as another one). This is great for creating layers of loops at the same length.
 
 To do this, press `d` followed by the loop number, then the destination loop slot.
 
