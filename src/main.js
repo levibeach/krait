@@ -114,19 +114,12 @@ const midiOutSetting = blessed.list({
   items: [],
 })
 
-function throttle(func, limit) {
-  let inThrottle
-  return function () {
-    const args = arguments
-    const context = this
-    if (!inThrottle) {
-      func.apply(context, args)
-      inThrottle = true
-      setTimeout(() => (inThrottle = false), limit)
-    }
-  }
-}
-
+/**
+ * Starts the recording loop if the system is armed.
+ * Sets the recording state to true and updates the label color to red.
+ * If the armed object is not locked, resets the frame counter and starts an interval
+ * that updates the label content with motion data at a specified MIDI rate.
+ */
 function recordLoop() {
   if (!armed) return
   recording = true
@@ -140,6 +133,15 @@ function recordLoop() {
   }
 }
 
+/**
+ * Stops the current recording session.
+ * - Sets the recording flag to false.
+ * - Updates the armed label to indicate recording has stopped.
+ * - If no loop length is set, assigns the current frame as the loop length and locks the loop.
+ * - If a loop length exists, enables overdubbing.
+ * - Clears the recording interval timer.
+ * - Starts playback of the recorded loop.
+ */
 function stopRecord() {
   recording = false
   armed.label.setContent(`————`)
@@ -154,6 +156,14 @@ function stopRecord() {
   startLoop(armed.id)
 }
 
+/**
+ * Starts playback of a loop identified by its ID.
+ * Sets the loop as playing, initializes its frame, and begins sending MIDI messages at a regular interval.
+ * Updates the display content based on the current frame and handles overdubbing logic.
+ * If the loop has no length, logs a debug message and exits.
+ *
+ * @param {string|number} lid - The unique identifier for the loop to start.
+ */
 function startLoop(lid) {
   const loop = loops.get(lid)
   if (!loop) return
@@ -183,12 +193,26 @@ function startLoop(lid) {
   }, midiRate)
 }
 
+/**
+ * Stops the playback loop associated with the given loop ID.
+ * Sets the loop's playing state to false and clears its interval timer.
+ *
+ * @param {string|number} lid - The unique identifier of the loop to stop.
+ */
 function stopLoop(lid) {
   const loop = loops.get(lid)
   loop.playing = false
   clearInterval(loop.interval)
 }
 
+/**
+ * Toggles the armed state of a loop identified by the given lid.
+ * If a loop is currently armed, it will stop recording (if active), log the event count,
+ * reset the label color, and disarm the loop.
+ * If no loop is armed, it will arm the loop with the specified lid and set its label color to yellow.
+ *
+ * @param {number|string} lid - The identifier of the loop to arm or disarm.
+ */
 function toggleArmed(lid) {
   if (armed) {
     if (recording) {
@@ -205,6 +229,12 @@ function toggleArmed(lid) {
   }
 }
 
+/**
+ * Initializes and stores a loop object with UI components and state properties at the given index.
+ *
+ * @param {number} i - The index at which to create and store the loop object.
+ * @returns {void}
+ */
 function setLoop(i) {
   loops.set(i, {
     id: i,
@@ -241,12 +271,22 @@ function setLoop(i) {
   })
 }
 
+/**
+ * Initializes loop iterations by calling setLoop for each index from 0 to 8.
+ * Useful for setting up multiple loop instances or configurations.
+ */
 function initLoops() {
   for (let i = 0; i < 9; i++) {
     setLoop(i)
   }
 }
 
+/**
+ * Resets the loop with the specified ID by stopping it, destroying its label and display,
+ * and reinitializing it.
+ *
+ * @param {string|number} lid - The unique identifier of the loop to reset.
+ */
 function resetLoop(lid) {
   if (!loops.has(lid)) return
   const loop = loops.get(lid)
@@ -256,6 +296,14 @@ function resetLoop(lid) {
   setLoop(lid)
 }
 
+/**
+ * Toggles the armReset state or sets it to a specific value.
+ * Updates the label content of each loop based on the armReset state:
+ * - If armed, sets each label to a red "×0N×" format (where N is the loop index + 1).
+ * - If not armed, sets each label to a placeholder "————".
+ *
+ * @param {boolean} [val] - Optional. If provided, sets armReset to this value; otherwise, toggles armReset.
+ */
 function toggleReset(val) {
   armReset = typeof val != 'undefined' ? val : !armReset
   if (armReset) {
@@ -385,6 +433,17 @@ function clean(a) {
   runMotion('clean', loop)
 }
 
+/**
+ * Animates a sequence of frames from the `motion` object for a given key `a`.
+ * Updates the `loop.display` content at regular intervals (100ms) and sets
+ * `loop.animating` to indicate animation state.
+ * Animation stops when all frames have been displayed.
+ *
+ * @param {string} a - The key to select the animation frames from the `motion` object.
+ * @param {Object} loop - The loop object containing animation state and display handler.
+ * @param {boolean} loop.animating - Indicates whether the animation is currently running.
+ * @param {Object} loop.display - The display object with a `setContent` method to update content.
+ */
 function runMotion(a, loop) {
   let k = 0
   loop.animating = true
@@ -399,6 +458,15 @@ function runMotion(a, loop) {
   }, 100)
 }
 
+/**
+ * Executes an action based on the first character of the global `sequence` string.
+ * The action is determined by the character ('c', 'd', 'l', 'm', 's', 't'), and may call
+ * one of the following functions: clean, duplicate, multiply, or trim, passing numeric
+ * arguments parsed from the sequence string.
+ * Handles errors by logging them and resets the global `action` and `sequence` variables.
+ *
+ * @throws {Error} Logs any error encountered during execution.
+ */
 function runSequence() {
   try {
     const s = sequence.charAt(0)
@@ -433,6 +501,16 @@ function runSequence() {
   }
 }
 
+/**
+ * Changes the MIDI port for either input or output.
+ *
+ * Depending on the `dest` parameter ('in' or 'out'), this function attempts to open the specified MIDI port.
+ * If the port is not open, it opens the port, logs the change, hides the relevant setting UI, and focuses the menu.
+ * If the port is already open, it closes the port and retries until it can open the new port.
+ *
+ * @param {'in'|'out'} dest - Specifies whether to change the MIDI input ('in') or output ('out') port.
+ * @param {number} port - The port number to switch to.
+ */
 function changeMidiPort(dest, port) {
   switch (dest) {
     case 'in':
@@ -466,6 +544,14 @@ function changeMidiPort(dest, port) {
   }
 }
 
+/**
+ * Initializes MIDI input and output ports for the application.
+ * - Opens virtual MIDI ports named 'KRAIT:IN' and 'KRAIT:OUT'.
+ * - Populates MIDI input and output port selection settings with available ports.
+ * - Opens the selected MIDI input and output ports.
+ * - Sets up event listeners to handle port selection changes.
+ * - Logs any errors encountered during initialization.
+ */
 function initMidiIo() {
   midiIn.openVirtualPort('KRAIT:IN')
   midiOut.openVirtualPort('KRAIT:OUT')
@@ -488,11 +574,29 @@ function initMidiIo() {
   }
 }
 
+/**
+ * Displays the given blessed element and sets focus to it.
+ *
+ * @param {blessed.Widgets.Node} el - The blessed element to show and focus.
+ */
 function showFocus(el) {
   el.show()
   el.focus()
 }
 
+/**
+ * Initializes the main application logic for Krait.
+ *
+ * - Sets up empty loops and MIDI input/output connections.
+ * - Handles menu selection events for MIDI settings and quitting the app.
+ * - Listens for MIDI input messages, logs them, and records data if armed.
+ * - Configures key bindings for loop control, actions, menu toggling, and quitting.
+ * - Manages UI focus and visibility for menu and MIDI settings.
+ * - Provides a shortcut to toggle the input display.
+ * - Sends 'sound off' messages to all MIDI channels when requested.
+ * - Periodically renders the screen and updates motion recording if armed.
+ * - Logs a ready message to the input display.
+ */
 function init() {
   // add empty loops
   initLoops()
