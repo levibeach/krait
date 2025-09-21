@@ -35,7 +35,7 @@ function init() {
 
   // Set up dependencies between modules
   midi.setDependencies(debug, ui.midiInMenu, ui.midiOutMenu, ui.mainMenu)
-  loops.setDependencies(debug, midi.output, ui.loopContainer)
+  loops.setDependencies(debug, midi, ui.loopContainer)
   sequencer.setDependencies(debug, loops, ui)
   events.setDependencies(ui, midi, loops, sequencer, debug)
 

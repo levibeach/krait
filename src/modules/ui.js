@@ -127,6 +127,7 @@ class UIManager {
    */
   prompt(message, title = 'Input') {
     return new Promise((resolve) => {
+      const dialogStyles = this.getStyles('dialog')
       const promptBox = blessed.prompt({
         parent: this.screen,
         top: 'center',
@@ -138,9 +139,8 @@ class UIManager {
         border: {
           type: 'line',
         },
-        style: this.getStyles('dialog'),
+        style: dialogStyles,
       })
-
       promptBox.input(message, '', (err, value) => {
         promptBox.destroy()
         this.screen.render()

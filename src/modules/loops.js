@@ -13,14 +13,14 @@ class LoopManager {
     this.playbackLength = motion.playback.length - 1
     this.midiRate = 25
     this.debug = null
-    this.midiOut = null
+    this.midi = null
     this.loopList = null
     this.l = 0 // motion counter
   }
 
-  setDependencies(debug, midiOut, loopList) {
+  setDependencies(debug, midi, loopList) {
     this.debug = debug
-    this.midiOut = midiOut
+    this.midi = midi
     this.loopList = loopList
   }
 
@@ -100,7 +100,7 @@ class LoopManager {
       }
 
       loop.data.get(loop.frame)?.forEach((item) => {
-        this.midiOut.sendMessage(item)
+        this.midi.output.sendMessage(item)
       })
 
       loop.frame = (loop.frame + 1) % loop.loopLength
@@ -117,6 +117,51 @@ class LoopManager {
     const loop = this.loops.get(lid)
     loop.playing = false
     clearInterval(loop.interval)
+  }
+
+  /**
+   * Toggles all loops on/off. If any loops are playing, stops all loops.
+   * If no loops are playing, starts all loops that have content.
+   */
+  toggleAllLoops() {
+    let anyPlaying = false
+
+    // Check if any loops are currently playing
+    for (let i = 0; i < 9; i++) {
+      const loop = this.loops.get(i)
+      if (loop && loop.playing) {
+        anyPlaying = true
+        break
+      }
+    }
+
+    if (anyPlaying) {
+      // Stop all playing loops
+      for (let i = 0; i < 9; i++) {
+        const loop = this.loops.get(i)
+        if (loop && loop.playing) {
+          this.stopLoop(i)
+        }
+      }
+      // Send additional MIDI panic for safety when stopping all loops
+      // this.midi.sendAllSoundOff()
+      // this.debug.log('All loops stopped with MIDI panic')
+    } else {
+      // Start all loops that have content
+      let startedCount = 0
+      for (let i = 0; i < 9; i++) {
+        const loop = this.loops.get(i)
+        if (loop && loop.loopLength && !loop.playing) {
+          this.startLoop(i)
+          startedCount++
+        }
+      }
+      if (startedCount > 0) {
+        this.debug.log(`Started ${startedCount} loops`)
+      } else {
+        this.debug.log('No loops to start')
+      }
+    }
   }
 
   /**
