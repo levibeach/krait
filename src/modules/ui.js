@@ -9,6 +9,7 @@ class UIManager {
     this.menu = null
     this.midiInSetting = null
     this.midiOutSetting = null
+    this.inputBlocked = false // Track if input should be blocked
     this.initializeUI()
   }
 
@@ -120,6 +121,28 @@ class UIManager {
   }
 
   /**
+   * Block input events from other handlers
+   */
+  blockInput() {
+    this.inputBlocked = true
+  }
+
+  /**
+   * Unblock input events for other handlers
+   */
+  unblockInput() {
+    this.inputBlocked = false
+  }
+
+  /**
+   * Check if input is currently blocked
+   * @returns {boolean} - True if input is blocked
+   */
+  isInputBlocked() {
+    return this.inputBlocked
+  }
+
+  /**
    * Shows a prompt dialog for user input
    * @param {string} message - The prompt message
    * @param {string} title - The dialog title (default: 'Input')
@@ -127,6 +150,8 @@ class UIManager {
    */
   prompt(message, title = 'Input') {
     return new Promise((resolve) => {
+      this.blockInput() // Block other keyboard events
+
       const dialogStyles = this.getStyles('dialog')
       const promptBox = blessed.prompt({
         parent: this.screen,
@@ -143,10 +168,86 @@ class UIManager {
       })
       promptBox.input(message, '', (err, value) => {
         promptBox.destroy()
+        this.unblockInput() // Unblock keyboard events
         this.screen.render()
         resolve(value || '')
       })
 
+      this.screen.render()
+    })
+  }
+
+  /**
+   * Shows a simple text input box without buttons
+   * @param {string} message - The input message/placeholder
+   * @param {string} title - The input title (default: 'Input')
+   * @returns {Promise<string>} - The user's input or empty string if cancelled
+   */
+  simpleInput(message, title = 'Input') {
+    return new Promise((resolve) => {
+      this.blockInput() // Block other keyboard events
+      let inputText = ''
+
+      const inputBox = blessed.box({
+        parent: this.screen,
+        top: 'center',
+        left: 'center',
+        width: 50,
+        height: 3,
+        label: this.formatLabel(title, 'dialog'),
+        tags: true,
+        border: {
+          type: 'line',
+        },
+        style: this.getStyles('dialog'),
+        keys: true,
+        content: inputText,
+      })
+
+      // Handle key events manually
+      inputBox.key(['enter'], () => {
+        inputBox.destroy()
+        this.unblockInput() // Unblock keyboard events
+        this.screen.render()
+        resolve(inputText.trim() || '')
+      })
+
+      inputBox.key(['escape'], () => {
+        inputBox.destroy()
+        this.unblockInput() // Unblock keyboard events
+        this.screen.render()
+        resolve('')
+      })
+
+      inputBox.key(['backspace'], () => {
+        inputText = inputText.slice(0, -1)
+        inputBox.setContent(inputText + '_')
+        this.screen.render()
+      })
+
+      // Handle character input
+      inputBox.on('keypress', (ch, key) => {
+        if (key && !key.ctrl && !key.meta) {
+          // Allow letters, numbers, spaces, hyphens, plus signs, and periods
+          if (
+            (key.name && key.name.length === 1) || // single characters (letters)
+            (ch && /[0-9\s\-\+\.]/.test(ch)) || // numbers, spaces, -, +, .
+            key.name === 'space' // explicit space key
+          ) {
+            if (key.name === 'space') {
+              inputText += ' '
+            } else {
+              inputText += ch
+            }
+            inputBox.setContent(inputText + '_')
+            this.screen.render()
+          }
+        }
+      })
+
+      inputBox.show()
+      inputBox.focus()
+      inputBox.setContent('_') // Show cursor
       this.screen.render()
     })
   }
@@ -164,6 +265,8 @@ class UIManager {
         resolve('')
         return
       }
+
+      this.blockInput() // Block other keyboard events
 
       const selectBox = blessed.list({
         parent: this.screen,
@@ -198,12 +301,14 @@ class UIManager {
       selectBox.on('select', (item, index) => {
         const selected = item.getText()
         selectBox.destroy()
+        this.unblockInput() // Unblock keyboard events
         this.screen.render()
         resolve(selected)
       })
 
       selectBox.key(['escape', 'q'], () => {
         selectBox.destroy()
+        this.unblockInput() // Unblock keyboard events
         this.screen.render()
         resolve('')
       })

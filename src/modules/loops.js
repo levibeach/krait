@@ -415,7 +415,7 @@ class LoopManager {
 
       // Prompt user for filename
       const filename = await promptCallback('Enter filename for saved loop:')
-      if (!filename) {
+      if (!filename || filename.trim() === '') {
         this.debug.log('Save cancelled - no filename provided')
         return
       }

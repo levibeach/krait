@@ -119,12 +119,13 @@ class Sequencer {
   }
 
   /**
-   * Save a loop with user prompt for filename
+   * Save a loop with user input for filename
    * @param {number} loopNumber - The loop number to save (1-9)
    */
   async saveLoop(loopNumber) {
     try {
-      const promptCallback = (message) => this.ui.prompt(message, 'Save Loop')
+      const promptCallback = (message) =>
+        this.ui.simpleInput(message, 'Save Loop')
       await this.loopManager.saveLoop(loopNumber, promptCallback)
     } catch (err) {
       this.debug.log(`Error in save operation: ${err.message}`)

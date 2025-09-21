@@ -84,6 +84,8 @@ class EventManager {
   setupKeyboardEvents() {
     // Number keys (1-9) for loop control
     this.ui.mainScreen.key([1, 2, 3, 4, 5, 6, 7, 8, 9], (ch, key) => {
+      if (this.ui.isInputBlocked()) return // Block if input dialog is active
+
       if (!this.sequencer.isActive) {
         const lid = parseInt(ch) - 1
         if (this.sequencer.isArmReset) {
@@ -100,6 +102,8 @@ class EventManager {
     this.ui.mainScreen.key(
       ['!', '@', '#', '$', '%', '^', '&', '*', '('],
       (ch, key) => {
+        if (this.ui.isInputBlocked()) return // Block if input dialog is active
+
         const k = +(this.shiftKeys[ch] - 1)
         if (!this.loops.currentLoops.has(k)) return
         const loop = this.loops.currentLoops.get(k)
@@ -109,16 +113,19 @@ class EventManager {
 
     // Tab for reset mode toggle
     this.ui.mainScreen.key(['tab'], (ch, key) => {
+      if (this.ui.isInputBlocked()) return // Block if input dialog is active
       this.sequencer.toggleReset()
     })
 
     // Action keys for sequences
     this.ui.mainScreen.key(['c', 'd', 'l', 'm', 's', 't'], (ch, key) => {
+      if (this.ui.isInputBlocked()) return // Block if input dialog is active
       this.sequencer.startAction(ch)
     })
 
     // Menu toggle
     this.ui.mainScreen.key(['C-d'], (ch, key) => {
+      if (this.ui.isInputBlocked()) return // Block if input dialog is active
       this.ui.mainMenu.toggle()
       this.ui.mainMenu.focus()
     })
@@ -128,6 +135,8 @@ class EventManager {
 
     // Escape key handling
     this.ui.mainScreen.key(['escape'], () => {
+      if (this.ui.isInputBlocked()) return // Block if input dialog is active
+
       if (!this.ui.mainMenu.hidden) {
         if (!this.ui.midiInMenu.hidden || !this.ui.midiOutMenu.hidden) {
           this.ui.midiInMenu.hide()
@@ -145,15 +154,20 @@ class EventManager {
     })
 
     // Input display toggle
-    this.ui.mainScreen.key(['`'], () => this.ui.logger.toggle())
+    this.ui.mainScreen.key(['`'], () => {
+      if (this.ui.isInputBlocked()) return // Block if input dialog is active
+      this.ui.logger.toggle()
+    })
 
     // Sound off (panic button)
     this.ui.mainScreen.key([0], () => {
+      if (this.ui.isInputBlocked()) return // Block if input dialog is active
       this.midi.sendAllSoundOff()
     })
 
     // Spacebar to start/stop all loops
     this.ui.mainScreen.key(['space'], () => {
+      if (this.ui.isInputBlocked()) return // Block if input dialog is active
       this.loops.toggleAllLoops()
     })
   }
