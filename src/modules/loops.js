@@ -294,6 +294,7 @@ class LoopManager {
       loopB.frame = 0
       loopB.locked = true
       loopB.loopLength = loopA.loopLength
+      loopB.channels = [] // Reset channels for new empty loop
       loopB.label.style.fg = 'default'
       this.runMotion('duplicate', loopB)
 
@@ -391,6 +392,7 @@ class LoopManager {
     this.debug.log(`loop ${a} cleaned`)
     const loop = this.loops.get(a - 1)
     loop.data = new Map()
+    loop.channels = [] // Reset channels when cleaning loop data
     this.runMotion('clean', loop)
   }
 
@@ -583,9 +585,24 @@ class LoopManager {
     return this.recording
   }
 
+  /**
+   * Add MIDI data to the current armed loop and track channels used
+   * @param {number} frame - The frame number to add MIDI data to
+   * @param {Array} message - MIDI message array [status, data1, data2]
+   */
   addMidiData(frame, message) {
     if (!this.armed) return
 
+    // Extract MIDI channel from status byte (lower 4 bits)
+    const statusByte = message[0]
+    const channel = statusByte & 0x0f // Get channel (0-15)
+
+    // Add channel to channels array if not already present
+    if (!this.armed.channels.includes(channel)) {
+      this.armed.channels.push(channel)
+    }
+
+    // Add MIDI data to the frame
     if (this.armed.data.has(frame)) {
       this.armed.data.get(frame).push(message)
     } else {

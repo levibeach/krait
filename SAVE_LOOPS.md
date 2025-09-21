@@ -58,20 +58,39 @@ Saved loops are stored as JSON files containing:
 
 ### Example Save File Structure
 
+````json
+## File Format
+
+Saved loops are stored as JSON files containing:
+
+- **Loop metadata**: ID, length, save timestamp
+- **MIDI channels**: Array of MIDI channels used in recording (0-15, in order of first occurrence)
+- **MIDI data**: Complete frame-by-frame MIDI information
+- **Timing information**: MIDI rate and frame timing
+- **Loop state**: Playing status and configuration details
+
+### Example Save File Structure
+
 ```json
 {
   "id": 3,
   "loopLength": 96,
-  "channels": [],
+  "locked": true,
+  "channels": [0, 9],
   "data": [
-    /* frame-by-frame MIDI events */
+    [0, [[144, 60, 127]]],
+    [24, [[128, 60, 0], [153, 36, 100]]]
   ],
-  "midiRate": 25,
   "metadata": {
-    "version": "0.4.1",
-    "savedAt": "2024-09-21T15:30:00.000Z"
+    "version": "1.0",
+    "savedAt": "2025-09-21T15:30:00.000Z",
+    "midiRate": 25
   }
 }
+````
+
+**Note**: The `channels` array tracks which MIDI channels (0-15) were used during recording, listed in the order they first appeared. This helps identify the instruments or voices that were recorded in the loop.
+
 ```
 
 ## Implementation Details
@@ -104,3 +123,4 @@ Saved loops are stored as JSON files containing:
 - The sequencer module coordinates between the UI and loop manager for save/load operations
 - All save/load activities are logged to `.kraitlog` for debugging purposes
 - The file format is designed to be forward-compatible with future versions of Krait
+```
