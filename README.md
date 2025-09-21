@@ -162,6 +162,29 @@ Krait is built with a modular architecture:
 - **data/**: Static data and animations
 - **utils/**: Utility functions and formatters
 
+## Development
+
+### Version Management
+
+Krait uses semantic versioning with automated bumping and git tagging:
+
+```bash
+# Check current version
+npm run version
+
+# Bump version (updates files, no commit)
+npm run bump:patch   # 0.4.1 -> 0.4.2
+npm run bump:minor   # 0.4.1 -> 0.5.0
+npm run bump:major   # 0.4.1 -> 1.0.0
+
+# Full release (bump, commit, tag, push)
+npm run release:patch
+npm run release:minor
+npm run release:major
+```
+
+See [docs/VERSIONING.md](docs/VERSIONING.md) for detailed information.
+
 ---
 
 **NOTE:** This app is provided without any guarentee of actually working on yours or anyone else's machine. It's a continuous work-in-progress, so if you find a bug let me know.
