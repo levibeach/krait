@@ -118,6 +118,30 @@ class EventManager {
       }
     })
 
+    // Number keys (0) for sound off and sequence building
+    this.ui.mainScreen.key([0], (ch, key) => {
+      if (this.ui.isInputBlocked()) return // Block if input dialog is active
+
+      if (!this.sequencer.isActive) {
+        // Sound off (panic button) when not in a sequence
+        this.midi.sendAllSoundOff()
+      } else {
+        // Add to sequence when in active sequence
+        this.sequencer.addToSequence(ch)
+      }
+    })
+
+    // Hexadecimal letters (a-f) for channel sequence building
+    this.ui.mainScreen.key(['a', 'b', 'c', 'd', 'e', 'f'], (ch, key) => {
+      if (this.ui.isInputBlocked()) return // Block if input dialog is active
+
+      if (this.sequencer.isActive) {
+        // Add to sequence for channel numbers (a=10, b=11, etc.)
+        this.sequencer.addToSequence(ch)
+      }
+      // If not in a sequence, these letters don't do anything
+    })
+
     // Shift + number keys for start/stop loops
     this.ui.mainScreen.key(
       ['!', '@', '#', '$', '%', '^', '&', '*', '('],
@@ -138,7 +162,7 @@ class EventManager {
     })
 
     // Action keys for sequences
-    this.ui.mainScreen.key(['c', 'd', 'l', 'm', 's', 't'], (ch, key) => {
+    this.ui.mainScreen.key(['c', 'd', 'l', 'm', 's', 't', 'x'], (ch, key) => {
       if (this.ui.isInputBlocked()) return // Block if input dialog is active
       this.sequencer.startAction(ch)
     })
@@ -177,12 +201,6 @@ class EventManager {
     this.ui.mainScreen.key(['`'], () => {
       if (this.ui.isInputBlocked()) return // Block if input dialog is active
       this.ui.logger.toggle()
-    })
-
-    // Sound off (panic button)
-    this.ui.mainScreen.key([0], () => {
-      if (this.ui.isInputBlocked()) return // Block if input dialog is active
-      this.midi.sendAllSoundOff()
     })
 
     // Spacebar to start/stop all loops

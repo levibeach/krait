@@ -609,6 +609,71 @@ class LoopManager {
       this.armed.data.set(frame, [message])
     }
   }
+
+  /**
+   * Reassign a MIDI channel in a loop to a different channel
+   * Updates all recorded MIDI data to use the new channel number
+   * @param {number} loopNumber - The loop number (1-9) to modify
+   * @param {number} oldChannel - The channel to change from (0-15)
+   * @param {number} newChannel - The channel to change to (0-15)
+   */
+  reassignChannel(loopNumber, oldChannel, newChannel) {
+    try {
+      const loopIndex = loopNumber - 1
+      const loop = this.loops.get(loopIndex)
+
+      if (!loop || !loop.loopLength) {
+        this.debug.log(`Loop ${loopNumber} is empty or has no length`)
+        return
+      }
+
+      let messagesUpdated = 0
+
+      // Iterate through all frames in the loop
+      for (const [frame, messages] of loop.data.entries()) {
+        // Update each MIDI message in the frame
+        for (let i = 0; i < messages.length; i++) {
+          const message = messages[i]
+          const statusByte = message[0]
+          const messageChannel = statusByte & 0x0f // Extract channel (lower 4 bits)
+
+          // Check if this message uses the old channel
+          if (messageChannel === oldChannel) {
+            // Create new status byte with the new channel
+            const newStatusByte = (statusByte & 0xf0) | (newChannel & 0x0f)
+            // Update the message in place
+            messages[i] = [newStatusByte, message[1], message[2]]
+            messagesUpdated++
+          }
+        }
+      }
+
+      // Update the channels array
+      const oldChannelIndex = loop.channels.indexOf(oldChannel)
+      if (oldChannelIndex !== -1 && !loop.channels.includes(newChannel)) {
+        // Replace old channel with new channel in the same position
+        loop.channels[oldChannelIndex] = newChannel
+      } else if (oldChannelIndex !== -1 && loop.channels.includes(newChannel)) {
+        // Remove old channel since new channel already exists
+        loop.channels.splice(oldChannelIndex, 1)
+      } else if (oldChannelIndex === -1 && messagesUpdated > 0) {
+        // Old channel wasn't tracked but we found messages, add new channel
+        loop.channels.push(newChannel)
+      }
+
+      // Sort channels array to keep it clean
+      loop.channels.sort((a, b) => a - b)
+
+      this.debug.log(
+        `Loop ${loopNumber}: reassigned channel ${oldChannel} → ${newChannel} (${messagesUpdated} messages updated)`
+      )
+      this.runMotion('clean', loop) // Use clean animation to indicate the change
+    } catch (err) {
+      this.debug.log(
+        `Error reassigning channel in loop ${loopNumber}: ${err.message}`
+      )
+    }
+  }
 }
 
 module.exports = LoopManager

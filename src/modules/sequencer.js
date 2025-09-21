@@ -54,9 +54,24 @@ class Sequencer {
   }
 
   /**
+   * Convert character to channel number
+   * Supports 0-9 for channels 0-9, and a-f for channels 10-15
+   * @param {string} ch - Character to convert
+   * @returns {number} Channel number (0-15) or -1 if invalid
+   */
+  charToChannel(ch) {
+    if (ch >= '0' && ch <= '9') {
+      return parseInt(ch)
+    } else if (ch >= 'a' && ch <= 'f') {
+      return 10 + (ch.charCodeAt(0) - 'a'.charCodeAt(0))
+    }
+    return -1
+  }
+
+  /**
    * Executes an action based on the first character of the global `sequence` string.
-   * The action is determined by the character ('c', 'd', 'l', 'm', 's', 't'), and may call
-   * one of the following functions: clean, duplicate, multiply, or trim, passing numeric
+   * The action is determined by the character ('c', 'd', 'l', 'm', 's', 't', 'x'), and may call
+   * one of the following functions: clean, duplicate, multiply, trim, or reassignChannel, passing numeric
    * arguments parsed from the sequence string.
    * Handles errors by logging them and resets the global `action` and `sequence` variables.
    *
@@ -67,6 +82,7 @@ class Sequencer {
       const s = this.sequence.charAt(0)
       const a = +this.sequence.charAt(1)
       const b = +this.sequence.charAt(2)
+      const c = +this.sequence.charAt(3) // For channel reassignment
       switch (s) {
         case 'c':
           this.loopManager.clean(a)
@@ -88,6 +104,20 @@ class Sequencer {
         case 't':
           this.loopManager.trim(a, b)
           break
+        case 'x':
+          // Channel reassignment: x[loop][oldChannel][newChannel]
+          const oldChannel = this.charToChannel(this.sequence.charAt(2))
+          const newChannel = this.charToChannel(this.sequence.charAt(3))
+
+          if (oldChannel === -1 || newChannel === -1) {
+            this.debug.log(
+              `Invalid channel format in sequence: ${this.sequence}`
+            )
+            return
+          }
+
+          this.loopManager.reassignChannel(a, oldChannel, newChannel)
+          break
         default:
           // Do nothing.
           return
@@ -102,7 +132,7 @@ class Sequencer {
 
   /**
    * Start an action sequence with the given character
-   * @param {string} ch - The action character (c, d, l, m, s, t)
+   * @param {string} ch - The action character (c, d, l, m, s, t, x)
    */
   startAction(ch) {
     this.action = true
@@ -119,7 +149,8 @@ class Sequencer {
     if (
       (this.sequence.length === 2 && s === 'c') ||
       (this.sequence.length === 3 && ['d', 'm', 't'].includes(s)) ||
-      (this.sequence.length === 2 && ['s', 'l'].includes(s))
+      (this.sequence.length === 2 && ['s', 'l'].includes(s)) ||
+      (this.sequence.length === 4 && s === 'x')
     ) {
       this.runSequence()
     }
