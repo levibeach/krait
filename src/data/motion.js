@@ -82,4 +82,12 @@ module.exports = {
     '▓▒░▒',
     '▓▒░▒',
   ],
+  load: [
+    '{black-fg}············{/black-fg}',
+    '{green-fg}████████████{/green-fg}',
+    '{green-fg}▓▓▓▓▓▓▓▓▓▓▓▓{/green-fg}',
+    '{green-fg}▒▒▒▒▒▒▒▒▒▒▒▒{/green-fg}',
+    '{green-fg}░░░░░░░░░░░░{/green-fg}',
+    '{black-fg}············{/black-fg}',
+  ],
 }

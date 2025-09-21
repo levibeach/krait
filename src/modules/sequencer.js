@@ -5,11 +5,13 @@ class Sequencer {
     this.armReset = false
     this.debug = null
     this.loopManager = null
+    this.ui = null
   }
 
-  setDependencies(debug, loopManager) {
+  setDependencies(debug, loopManager, ui) {
     this.debug = debug
     this.loopManager = loopManager
+    this.ui = ui
   }
 
   /**
@@ -57,12 +59,16 @@ class Sequencer {
           this.loopManager.duplicate(a, b)
           break
         case 'l':
-        // TODO: Create ability to load a saved sequence into a loop slot
+          // Load a saved loop into a loop slot
+          this.loadLoop(a)
+          break
         case 'm':
           this.loopManager.multiply(a, b)
           break
         case 's':
-        // TODO: Create ability to save a sequence to disk
+          // Save a loop to disk
+          this.saveLoop(a)
+          break
         case 't':
           this.loopManager.trim(a, b)
           break
@@ -93,9 +99,11 @@ class Sequencer {
    */
   addToSequence(ch) {
     this.sequence += ch
+    const s = this.sequence.charAt(0)
     if (
-      (this.sequence.length === 2 && this.sequence.charAt(0) === 'c') ||
-      this.sequence.length === 3
+      (this.sequence.length === 2 && s === 'c') ||
+      (this.sequence.length === 3 && ['d', 'm', 't'].includes(s)) ||
+      (this.sequence.length === 2 && ['s', 'l'].includes(s))
     ) {
       this.runSequence()
     }
@@ -108,6 +116,33 @@ class Sequencer {
     this.action = false
     this.sequence = ''
     this.toggleReset(false)
+  }
+
+  /**
+   * Save a loop with user prompt for filename
+   * @param {number} loopNumber - The loop number to save (1-9)
+   */
+  async saveLoop(loopNumber) {
+    try {
+      const promptCallback = (message) => this.ui.prompt(message, 'Save Loop')
+      await this.loopManager.saveLoop(loopNumber, promptCallback)
+    } catch (err) {
+      this.debug.log(`Error in save operation: ${err.message}`)
+    }
+  }
+
+  /**
+   * Load a saved loop with user selection dialog
+   * @param {number} loopNumber - The loop number to load into (1-9)
+   */
+  async loadLoop(loopNumber) {
+    try {
+      const selectCallback = (message, options) =>
+        this.ui.select(message, options, 'Load Loop')
+      await this.loopManager.loadLoop(loopNumber, selectCallback)
+    } catch (err) {
+      this.debug.log(`Error in load operation: ${err.message}`)
+    }
   }
 
   // Getters for external access
