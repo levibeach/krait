@@ -30,7 +30,11 @@ class UIManager {
    * @returns {object} - The style object
    */
   getStyles(type = 'menu') {
-    return config.ui.styles[type] || config.ui.styles.menu
+    return (
+      config.ui.styles[type] ||
+      config.ui.styles.menu ||
+      config.ui.styles.default
+    )
   }
 
   /**
@@ -152,7 +156,6 @@ class UIManager {
     return new Promise((resolve) => {
       this.blockInput() // Block other keyboard events
 
-      const dialogStyles = this.getStyles('dialog')
       const promptBox = blessed.prompt({
         parent: this.screen,
         top: 'center',
@@ -164,7 +167,7 @@ class UIManager {
         border: {
           type: 'line',
         },
-        style: dialogStyles,
+        style: this.getStyles('default'),
       })
       promptBox.input(message, '', (err, value) => {
         promptBox.destroy()
@@ -188,6 +191,7 @@ class UIManager {
       this.blockInput() // Block other keyboard events
       let inputText = ''
 
+      // Use a simplified style object to avoid nested property issues
       const inputBox = blessed.box({
         parent: this.screen,
         top: 'center',
@@ -199,7 +203,6 @@ class UIManager {
         border: {
           type: 'line',
         },
-        style: this.getStyles('dialog'),
         keys: true,
         content: inputText,
       })
