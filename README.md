@@ -4,8 +4,6 @@
 
 Krait is a command line MIDI looper application that records, plays, and manipulates MIDI messages in real-time. Version 0.4.1 includes advanced sequencing operations, save/load functionality, and a customizable terminal user interface.
 
-**WARNING:** This is a work-in-progress and was created fairly quickly so use at your own risk.
-
 ## Install & Run
 
 To get Krait running in the terminal, first make sure you have Node.js and NPM installed.
