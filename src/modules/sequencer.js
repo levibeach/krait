@@ -55,15 +55,15 @@ class Sequencer {
 
   /**
    * Convert character to channel number
-   * Supports 0-9 for channels 0-9, and a-f for channels 10-15
+   * Supports 0-9 for channels 1-10, and a-f for channels 11-16
    * @param {string} ch - Character to convert
-   * @returns {number} Channel number (0-15) or -1 if invalid
+   * @returns {number} Channel number (1-16) or -1 if invalid
    */
   charToChannel(ch) {
     if (ch >= '0' && ch <= '9') {
-      return parseInt(ch)
+      return parseInt(ch) + 1
     } else if (ch >= 'a' && ch <= 'f') {
-      return 10 + (ch.charCodeAt(0) - 'a'.charCodeAt(0))
+      return 11 + (ch.charCodeAt(0) - 'a'.charCodeAt(0))
     }
     return -1
   }
@@ -106,10 +106,11 @@ class Sequencer {
           break
         case 'x':
           // Channel reassignment: x[loop][oldChannel][newChannel]
-          const oldChannel = this.charToChannel(this.sequence.charAt(2))
-          const newChannel = this.charToChannel(this.sequence.charAt(3))
+          const oldChannel = this.charToChannel(this.sequence.charAt(2)) - 1 // Convert to 0-indexed
+          const newChannel = this.charToChannel(this.sequence.charAt(3)) - 1 // Convert to 0-indexed
 
-          if (oldChannel === -1 || newChannel === -1) {
+          if (oldChannel === -2 || newChannel === -2) {
+            // -1 from charToChannel becomes -2 after subtracting 1
             this.debug.log(
               `Invalid channel format in sequence: ${this.sequence}`
             )
