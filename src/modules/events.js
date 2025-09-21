@@ -164,7 +164,13 @@ class EventManager {
     // Action keys for sequences
     this.ui.mainScreen.key(['c', 'd', 'l', 'm', 's', 't', 'x'], (ch, key) => {
       if (this.ui.isInputBlocked()) return // Block if input dialog is active
-      this.sequencer.startAction(ch)
+
+      // If a sequence is already in progress, add to it instead of starting new action
+      if (this.sequencer.isActive) {
+        this.sequencer.addToSequence(ch)
+      } else {
+        this.sequencer.startAction(ch)
+      }
     })
 
     // Menu toggle
