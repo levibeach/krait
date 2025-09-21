@@ -1,0 +1,40 @@
+{
+  "saveDirectory": "./saves",
+  "midiRate": 25,
+  "defaultPorts": {
+    "in": 0,
+    "out": 0
+  },
+  "ui": {
+    "labelFormats": {
+      "menu": " {text} ",
+      "dialog": " {text} ",
+      "setting": " {text} "
+    },
+    "styles": {
+      "menu": {
+        "focus": {
+          "selected": {
+            "fg": "black",
+            "bg": "white"
+          },
+          "border": {
+            "fg": "white"
+          },
+          "fg": "white"
+        }
+      },
+      "dialog": {
+        "focus": {
+          "selected": {
+            "fg": "black",
+            "bg": "white"
+          },
+          "border": {
+            "fg": "white"
+          }
+        }
+      }
+    }
+  }
+}

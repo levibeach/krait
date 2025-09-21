@@ -1,5 +1,8 @@
 const blessed = require('blessed')
 const motion = require('../data/motion.js')
+const fs = require('fs')
+const path = require('path')
+const config = require('../../config.json')
 
 class LoopManager {
   constructor() {
@@ -10,14 +13,14 @@ class LoopManager {
     this.playbackLength = motion.playback.length - 1
     this.midiRate = 25
     this.debug = null
-    this.midiOut = null
+    this.midi = null
     this.loopList = null
     this.l = 0 // motion counter
   }
 
-  setDependencies(debug, midiOut, loopList) {
+  setDependencies(debug, midi, loopList) {
     this.debug = debug
-    this.midiOut = midiOut
+    this.midi = midi
     this.loopList = loopList
   }
 
@@ -97,7 +100,7 @@ class LoopManager {
       }
 
       loop.data.get(loop.frame)?.forEach((item) => {
-        this.midiOut.sendMessage(item)
+        this.midi.output.sendMessage(item)
       })
 
       loop.frame = (loop.frame + 1) % loop.loopLength
@@ -114,6 +117,51 @@ class LoopManager {
     const loop = this.loops.get(lid)
     loop.playing = false
     clearInterval(loop.interval)
+  }
+
+  /**
+   * Toggles all loops on/off. If any loops are playing, stops all loops.
+   * If no loops are playing, starts all loops that have content.
+   */
+  toggleAllLoops() {
+    let anyPlaying = false
+
+    // Check if any loops are currently playing
+    for (let i = 0; i < 9; i++) {
+      const loop = this.loops.get(i)
+      if (loop && loop.playing) {
+        anyPlaying = true
+        break
+      }
+    }
+
+    if (anyPlaying) {
+      // Stop all playing loops
+      for (let i = 0; i < 9; i++) {
+        const loop = this.loops.get(i)
+        if (loop && loop.playing) {
+          this.stopLoop(i)
+        }
+      }
+      // Send additional MIDI panic for safety when stopping all loops
+      // this.midi.sendAllSoundOff()
+      // this.debug.log('All loops stopped with MIDI panic')
+    } else {
+      // Start all loops that have content
+      let startedCount = 0
+      for (let i = 0; i < 9; i++) {
+        const loop = this.loops.get(i)
+        if (loop && loop.loopLength && !loop.playing) {
+          this.startLoop(i)
+          startedCount++
+        }
+      }
+      if (startedCount > 0) {
+        this.debug.log(`Started ${startedCount} loops`)
+      } else {
+        this.debug.log('No loops to start')
+      }
+    }
   }
 
   /**
@@ -348,6 +396,157 @@ class LoopManager {
         k++
       }
     }, 100)
+  }
+
+  /**
+   * Saves a loop to disk with a user-provided name
+   * @param {number} loopNumber - The loop number (1-9) to save
+   * @param {Function} promptCallback - Callback function to prompt user for filename
+   */
+  async saveLoop(loopNumber, promptCallback) {
+    try {
+      const loopIndex = loopNumber - 1
+      const loop = this.loops.get(loopIndex)
+
+      if (!loop || !loop.loopLength) {
+        this.debug.log(`Loop ${loopNumber} is empty or has no length`)
+        return
+      }
+
+      // Prompt user for filename
+      const filename = await promptCallback('Enter filename for saved loop:')
+      if (!filename) {
+        this.debug.log('Save cancelled - no filename provided')
+        return
+      }
+
+      // Ensure save directory exists
+      const saveDir = path.resolve(config.saveDirectory)
+      if (!fs.existsSync(saveDir)) {
+        fs.mkdirSync(saveDir, { recursive: true })
+      }
+
+      // Prepare loop data for saving
+      const loopData = {
+        id: loop.id,
+        loopLength: loop.loopLength,
+        locked: loop.locked,
+        channels: loop.channels,
+        data: Array.from(loop.data.entries()), // Convert Map to array for JSON
+        metadata: {
+          savedAt: new Date().toISOString(),
+          version: '1.0',
+          midiRate: this.midiRate,
+        },
+      }
+
+      // Save to file
+      const filepath = path.join(saveDir, `${filename}.json`)
+      fs.writeFileSync(filepath, JSON.stringify(loopData, null, 2))
+
+      this.debug.log(`Loop ${loopNumber} saved as "${filename}.json"`)
+      this.debug.log(`Location: ${filepath}`)
+    } catch (err) {
+      this.debug.log(`Error saving loop ${loopNumber}: ${err.message}`)
+    }
+  }
+
+  /**
+   * Get list of available saved loop files
+   * @returns {Array<string>} - Array of saved loop filenames (without .json extension)
+   */
+  getSavedLoops() {
+    try {
+      const saveDir = path.resolve(config.saveDirectory)
+      if (!fs.existsSync(saveDir)) {
+        return []
+      }
+
+      const files = fs.readdirSync(saveDir)
+      return files
+        .filter((file) => file.endsWith('.json'))
+        .map((file) => file.replace('.json', ''))
+        .sort()
+    } catch (err) {
+      this.debug.log(`Error reading saved loops: ${err.message}`)
+      return []
+    }
+  }
+
+  /**
+   * Load a saved loop into a specific loop slot
+   * @param {number} loopNumber - The loop slot (1-9) to load into
+   * @param {Function} selectCallback - Callback function to let user select which saved loop to load
+   */
+  async loadLoop(loopNumber, selectCallback) {
+    try {
+      const loopIndex = loopNumber - 1
+      const targetLoop = this.loops.get(loopIndex)
+
+      if (!targetLoop) {
+        this.debug.log(`Invalid loop slot: ${loopNumber}`)
+        return
+      }
+
+      // Get available saved loops
+      const savedLoops = this.getSavedLoops()
+      if (savedLoops.length === 0) {
+        this.debug.log('No saved loops found')
+        return
+      }
+
+      // Let user select which loop to load
+      const selectedFile = await selectCallback('', savedLoops)
+      if (!selectedFile) {
+        this.debug.log('Load cancelled - no file selected')
+        return
+      }
+
+      // Load the selected file
+      const saveDir = path.resolve(config.saveDirectory)
+      const filepath = path.join(saveDir, `${selectedFile}.json`)
+
+      if (!fs.existsSync(filepath)) {
+        this.debug.log(`File not found: ${selectedFile}.json`)
+        return
+      }
+
+      const loopData = JSON.parse(fs.readFileSync(filepath, 'utf8'))
+
+      // Stop current loop if playing
+      if (targetLoop.playing) {
+        this.stopLoop(loopIndex)
+      }
+
+      // Clear existing data
+      targetLoop.data.clear()
+
+      // Load the saved data
+      targetLoop.loopLength = loopData.loopLength
+      targetLoop.locked = loopData.locked
+      targetLoop.channels = loopData.channels || []
+      targetLoop.frame = 0
+      targetLoop.playing = false
+      targetLoop.animating = false
+
+      // Convert array back to Map
+      if (loopData.data && Array.isArray(loopData.data)) {
+        loopData.data.forEach(([frame, events]) => {
+          targetLoop.data.set(frame, events)
+        })
+      }
+
+      // Update visual state
+      targetLoop.label.style.fg = 'default'
+      this.runMotion('load', targetLoop)
+
+      this.debug.log(`Loop ${loopNumber} loaded from "${selectedFile}.json"`)
+      this.debug.log(
+        `Data: ${targetLoop.data.size} frames, length: ${targetLoop.loopLength}`
+      )
+    } catch (err) {
+      this.debug.log(`Error loading loop ${loopNumber}: ${err.message}`)
+    }
   }
 
   // Getters for external access

@@ -151,6 +151,11 @@ class EventManager {
     this.ui.mainScreen.key([0], () => {
       this.midi.sendAllSoundOff()
     })
+
+    // Spacebar to start/stop all loops
+    this.ui.mainScreen.key(['space'], () => {
+      this.loops.toggleAllLoops()
+    })
   }
 }
 
