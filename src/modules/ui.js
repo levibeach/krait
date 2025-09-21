@@ -1,7 +1,15 @@
 const blessed = require('blessed')
 const config = require('../../config.json')
 
+/**
+ * UIManager - Manages all user interface components and dialogs for Krait
+ * Handles screen setup, dialog management, and input blocking for clean UX
+ */
 class UIManager {
+  /**
+   * Initialize the UI manager with screen and component setup
+   * Automatically initializes all UI components and sets up input blocking
+   */
   constructor() {
     this.screen = null
     this.inputDisplay = null
@@ -9,7 +17,7 @@ class UIManager {
     this.menu = null
     this.midiInSetting = null
     this.midiOutSetting = null
-    this.inputBlocked = false // Track if input should be blocked
+    this.inputBlocked = false // Track if input should be blocked for dialogs
     this.initializeUI()
   }
 
@@ -26,8 +34,8 @@ class UIManager {
 
   /**
    * Get UI styles for a specific component type
-   * @param {string} type - The style type (menu, dialog)
-   * @returns {object} - The style object
+   * @param {string} type - The style type (menu, dialog, default)
+   * @returns {object} - The style object from config, with fallbacks to menu then default styles
    */
   getStyles(type = 'menu') {
     return (
@@ -125,32 +133,35 @@ class UIManager {
   }
 
   /**
-   * Block input events from other handlers
+   * Block input events from other keyboard handlers
+   * Used to prevent interference when dialogs are active
    */
   blockInput() {
     this.inputBlocked = true
   }
 
   /**
-   * Unblock input events for other handlers
+   * Unblock input events for other keyboard handlers
+   * Restores normal keyboard functionality after dialogs close
    */
   unblockInput() {
     this.inputBlocked = false
   }
 
   /**
-   * Check if input is currently blocked
-   * @returns {boolean} - True if input is blocked
+   * Check if input is currently blocked by an active dialog
+   * @returns {boolean} - True if input is blocked, false otherwise
    */
   isInputBlocked() {
     return this.inputBlocked
   }
 
   /**
-   * Shows a prompt dialog for user input
-   * @param {string} message - The prompt message
+   * Shows a prompt dialog for user input with OK/Cancel buttons
+   * Blocks other keyboard events while active
+   * @param {string} message - The prompt message to display
    * @param {string} title - The dialog title (default: 'Input')
-   * @returns {Promise<string>} - The user's input
+   * @returns {Promise<string>} - The user's input or empty string if cancelled
    */
   prompt(message, title = 'Input') {
     return new Promise((resolve) => {
@@ -182,9 +193,17 @@ class UIManager {
 
   /**
    * Shows a simple text input box without buttons
-   * @param {string} message - The input message/placeholder
+   * Supports letters, numbers, spaces, hyphens, plus signs, and periods
+   * Blocks other keyboard events while active
+   * @param {string} message - The input message/placeholder (currently unused)
    * @param {string} title - The input title (default: 'Input')
-   * @returns {Promise<string>} - The user's input or empty string if cancelled
+   * @returns {Promise<string>} - The user's input (trimmed) or empty string if cancelled
+   * @description
+   * Key controls:
+   * - Enter: Save input and close
+   * - Escape: Cancel and close
+   * - Backspace: Delete last character
+   * - Alphanumeric + space, -, +, .: Add to input
    */
   simpleInput(message, title = 'Input') {
     return new Promise((resolve) => {
@@ -257,10 +276,16 @@ class UIManager {
 
   /**
    * Shows a selection dialog with a list of options
-   * @param {string} message - The selection message
+   * Blocks other keyboard events while active
+   * @param {string} message - The selection message (currently unused)
    * @param {Array<string>} options - Array of options to choose from
    * @param {string} title - The dialog title (default: 'Select')
-   * @returns {Promise<string>} - The selected option or empty string if cancelled
+   * @returns {Promise<string>} - The selected option or empty string if cancelled/no options
+   * @description
+   * Key controls:
+   * - Up/Down arrows: Navigate options
+   * - Enter: Select highlighted option
+   * - Escape/q: Cancel selection
    */
   select(message, options = [], title = 'Select') {
     return new Promise((resolve) => {
@@ -322,8 +347,8 @@ class UIManager {
   }
 
   /**
-   * Start the main render loop
-   * @param {number} interval - Render interval in milliseconds
+   * Start the main render loop for continuous screen updates
+   * @param {number} interval - Render interval in milliseconds (default: 25ms = 40fps)
    */
   startRenderLoop(interval = 25) {
     setInterval(() => {
@@ -331,27 +356,34 @@ class UIManager {
     }, interval)
   }
 
-  // Getters for external access
+  // Getters for external module access to UI components
+
+  /** @returns {blessed.Screen} - The main blessed screen instance */
   get mainScreen() {
     return this.screen
   }
 
+  /** @returns {blessed.Log} - The input/debug log display component */
   get logger() {
     return this.inputDisplay
   }
 
+  /** @returns {blessed.Box} - The main loop container for loop displays */
   get loopContainer() {
     return this.loopList
   }
 
+  /** @returns {blessed.List} - The main application menu */
   get mainMenu() {
     return this.menu
   }
 
+  /** @returns {blessed.List} - The MIDI input device selection menu */
   get midiInMenu() {
     return this.midiInSetting
   }
 
+  /** @returns {blessed.List} - The MIDI output device selection menu */
   get midiOutMenu() {
     return this.midiOutSetting
   }
