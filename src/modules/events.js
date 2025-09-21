@@ -137,6 +137,7 @@ class EventManager {
 
       if (this.sequencer.isActive) {
         // Add to sequence for channel numbers (a=10, b=11, etc.)
+        this.debug.log(`Hex letter "${ch}" added to sequence`)
         this.sequencer.addToSequence(ch)
       }
       // If not in a sequence, these letters don't do anything
@@ -162,11 +163,26 @@ class EventManager {
     })
 
     // Action keys for sequences
-    this.ui.mainScreen.key(['c', 'd', 'l', 'm', 's', 't', 'x'], (ch, key) => {
+    this.ui.mainScreen.key(['l', 'm', 's', 't'], (ch, key) => {
       if (this.ui.isInputBlocked()) return // Block if input dialog is active
 
-      // If a sequence is already in progress, add to it instead of starting new action
       if (this.sequencer.isActive) {
+        this.sequencer.addToSequence(ch)
+      } else {
+        this.sequencer.startAction(ch)
+      }
+    })
+
+    // Separate handlers for 'c', 'd', 'x' to avoid conflicts with hex letters
+    this.ui.mainScreen.key(['c', 'd', 'x'], (ch, key) => {
+      if (this.ui.isInputBlocked()) return // Block if input dialog is active
+
+      if (this.sequencer.isActive) {
+        const currentSequence = this.sequencer.currentSequence
+        // For 'x' sequences, let 'c' and 'd' be handled as hex letters only
+        if (currentSequence.startsWith('x') && ['c', 'd'].includes(ch)) {
+          return // Let the hex letters handler deal with it
+        }
         this.sequencer.addToSequence(ch)
       } else {
         this.sequencer.startAction(ch)

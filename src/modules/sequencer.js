@@ -146,6 +146,10 @@ class Sequencer {
    */
   addToSequence(ch) {
     this.sequence += ch
+    this.debug.log(
+      `Sequence building: "${this.sequence}" (length: ${this.sequence.length})`
+    )
+
     const s = this.sequence.charAt(0)
     if (
       (this.sequence.length === 2 && s === 'c') ||
@@ -153,6 +157,7 @@ class Sequencer {
       (this.sequence.length === 2 && ['s', 'l'].includes(s)) ||
       (this.sequence.length === 4 && s === 'x')
     ) {
+      this.debug.log(`Executing sequence: "${this.sequence}"`)
       this.runSequence()
     }
   }
