@@ -1,13 +1,29 @@
+/**
+ * Sequencer - Handles advanced loop operations and command sequences
+ *
+ * This class manages complex operations that operate on loops, including:
+ * - Loop manipulation commands (duplicate, multiply, trim, clean)
+ * - Save and load operations with user interaction
+ * - Sequence parsing and execution
+ * - Reset operations for clearing loop states
+ * - Coordination between UI prompts and loop management
+ */
 class Sequencer {
   constructor() {
-    this.action = false
-    this.sequence = ''
-    this.armReset = false
-    this.debug = null
-    this.loopManager = null
-    this.ui = null
+    this.action = false // Flag indicating if a sequence is in progress
+    this.sequence = '' // Current command sequence being built
+    this.armReset = false // Flag for reset mode (clear all loops)
+    this.debug = null // Debug logger instance
+    this.loopManager = null // Loop manager instance
+    this.ui = null // UI manager instance
   }
 
+  /**
+   * Set up dependencies for the sequencer
+   * @param {Logger} debug - Debug logger instance
+   * @param {LoopManager} loopManager - Loop management instance
+   * @param {UIManager} ui - User interface manager instance
+   */
   setDependencies(debug, loopManager, ui) {
     this.debug = debug
     this.loopManager = loopManager
@@ -119,12 +135,13 @@ class Sequencer {
   }
 
   /**
-   * Save a loop with user prompt for filename
+   * Save a loop with user input for filename
    * @param {number} loopNumber - The loop number to save (1-9)
    */
   async saveLoop(loopNumber) {
     try {
-      const promptCallback = (message) => this.ui.prompt(message, 'Save Loop')
+      const promptCallback = (message) =>
+        this.ui.simpleInput(message, 'Save Loop')
       await this.loopManager.saveLoop(loopNumber, promptCallback)
     } catch (err) {
       this.debug.log(`Error in save operation: ${err.message}`)

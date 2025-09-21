@@ -33,6 +33,13 @@
           "border": {
             "fg": "white"
           }
+        },
+        "fg": "white"
+      },
+      "default": {
+        "focus": {
+          "fg": "black",
+          "bg": "white"
         }
       }
     }

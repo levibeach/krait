@@ -4,26 +4,47 @@ const fs = require('fs')
 const path = require('path')
 const config = require('../../config.json')
 
+/**
+ * LoopManager - Manages MIDI loop recording, playback, and manipulation
+ *
+ * This class handles the core functionality of Krait's looping system including:
+ * - Recording MIDI input into loops
+ * - Playing back recorded loops with timing synchronization
+ * - Managing loop states (armed, recording, playing, overdubbing)
+ * - Loop manipulation operations (duplicate, multiply, trim, clean)
+ * - Save/load operations for persistent loop storage
+ * - UI integration for visual feedback and animations
+ */
 class LoopManager {
   constructor() {
-    this.loops = new Map()
-    this.armed = null
-    this.recording = false
-    this.overdub = false
-    this.playbackLength = motion.playback.length - 1
-    this.midiRate = 25
-    this.debug = null
-    this.midi = null
-    this.loopList = null
-    this.l = 0 // motion counter
+    this.loops = new Map() // Storage for all loop instances
+    this.armed = null // Currently armed loop ready for recording
+    this.recording = false // Global recording state flag
+    this.overdub = false // Overdubbing mode flag
+    this.playbackLength = motion.playback.length - 1 // Max frames for visual animation
+    this.midiRate = 25 // Timing rate in milliseconds
+    this.debug = null // Debug logger instance
+    this.midi = null // MIDI manager instance
+    this.loopList = null // UI loop list component
+    this.l = 0 // Global motion counter for animations
   }
 
+  /**
+   * Set up dependencies for the loop manager
+   * @param {Logger} debug - Debug logger instance
+   * @param {MidiManager} midi - MIDI input/output manager
+   * @param {Object} loopList - UI component for displaying loops
+   */
   setDependencies(debug, midi, loopList) {
     this.debug = debug
     this.midi = midi
     this.loopList = loopList
   }
 
+  /**
+   * Update the global motion counter used for animations
+   * @param {number} l - Motion counter value (0 to motion.record.length)
+   */
   setMotionCounter(l) {
     this.l = l
   }
@@ -273,6 +294,7 @@ class LoopManager {
       loopB.frame = 0
       loopB.locked = true
       loopB.loopLength = loopA.loopLength
+      loopB.channels = [] // Reset channels for new empty loop
       loopB.label.style.fg = 'default'
       this.runMotion('duplicate', loopB)
 
@@ -370,6 +392,7 @@ class LoopManager {
     this.debug.log(`loop ${a} cleaned`)
     const loop = this.loops.get(a - 1)
     loop.data = new Map()
+    loop.channels = [] // Reset channels when cleaning loop data
     this.runMotion('clean', loop)
   }
 
@@ -415,7 +438,7 @@ class LoopManager {
 
       // Prompt user for filename
       const filename = await promptCallback('Enter filename for saved loop:')
-      if (!filename) {
+      if (!filename || filename.trim() === '') {
         this.debug.log('Save cancelled - no filename provided')
         return
       }
@@ -562,9 +585,24 @@ class LoopManager {
     return this.recording
   }
 
+  /**
+   * Add MIDI data to the current armed loop and track channels used
+   * @param {number} frame - The frame number to add MIDI data to
+   * @param {Array} message - MIDI message array [status, data1, data2]
+   */
   addMidiData(frame, message) {
     if (!this.armed) return
 
+    // Extract MIDI channel from status byte (lower 4 bits)
+    const statusByte = message[0]
+    const channel = statusByte & 0x0f // Get channel (0-15)
+
+    // Add channel to channels array if not already present
+    if (!this.armed.channels.includes(channel)) {
+      this.armed.channels.push(channel)
+    }
+
+    // Add MIDI data to the frame
     if (this.armed.data.has(frame)) {
       this.armed.data.get(frame).push(message)
     } else {

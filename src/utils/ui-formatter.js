@@ -1,7 +1,14 @@
 const config = require('../../config.json')
 
 /**
- * UI formatting utilities
+ * UIFormatter - Centralized UI styling and formatting utilities
+ *
+ * Provides consistent formatting and styling across all UI components:
+ * - Template-based label formatting with configurable patterns
+ * - Hierarchical style resolution with automatic fallbacks
+ * - Blessed.js component property generation
+ * - Integration with config.json for easy customization
+ * - Static methods for use without instantiation
  */
 class UIFormatter {
   /**
@@ -16,25 +23,27 @@ class UIFormatter {
   }
 
   /**
-   * Get UI styles for a specific component type
-   * @param {string} type - The style type (menu, dialog)
-   * @returns {object} - The style object
+   * Get UI styles for a specific component type with automatic fallbacks
+   * @param {string} type - The style type (menu, dialog, default)
+   * @returns {object} - The style object with fallback to menu then default styles
    */
   static getStyles(type = 'menu') {
-    return config.ui.styles[type] || config.ui.styles.menu
+    return (
+      config.ui.styles[type] ||
+      config.ui.styles.menu ||
+      config.ui.styles.default
+    )
   }
 
   /**
    * Create standard blessed component properties with configured styles
-   * @param {string} styleType - The style type (menu, dialog)
+   * @param {string} styleType - The style type (menu, dialog, default)
    * @param {object} overrides - Additional properties to override defaults
-   * @returns {object} - Component properties object
+   * @returns {object} - Complete component properties object ready for blessed.js
    */
   static createStandardProps(styleType = 'menu', overrides = {}) {
     return {
-      border: {
-        type: 'line',
-      },
+      border: { type: 'line' },
       style: this.getStyles(styleType),
       keys: true,
       mouse: true,
