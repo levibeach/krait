@@ -1,6 +1,6 @@
 {
   "name": "krait",
-  "version": "0.4.2",
+  "version": "0.4.3",
   "description": "A command line MIDI looper",
   "main": "./src/main.js",
   "scripts": {
