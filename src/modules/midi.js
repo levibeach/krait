@@ -1,19 +1,37 @@
 const midi = require('midi')
 
+/**
+ * MidiManager - Handles MIDI input/output connections and port management
+ *
+ * This class manages all MIDI-related functionality including:
+ * - MIDI input/output port initialization and configuration
+ * - Virtual MIDI port creation for external connections
+ * - Dynamic port switching with UI integration
+ * - Port enumeration and selection menus
+ * - MIDI device connection management
+ */
 class MidiManager {
   constructor() {
-    this.midiIn = new midi.Input()
-    this.midiOut = new midi.Output()
+    this.midiIn = new midi.Input() // MIDI input instance
+    this.midiOut = new midi.Output() // MIDI output instance
     this.ports = {
+      // Currently selected ports
       in: 0,
       out: 0,
     }
-    this.debug = null
-    this.midiInSetting = null
-    this.midiOutSetting = null
-    this.menu = null
+    this.debug = null // Debug logger instance
+    this.midiInSetting = null // UI component for input port selection
+    this.midiOutSetting = null // UI component for output port selection
+    this.menu = null // Main menu UI component
   }
 
+  /**
+   * Set up dependencies for the MIDI manager
+   * @param {Logger} debug - Debug logger instance
+   * @param {Object} midiInSetting - UI component for MIDI input port selection
+   * @param {Object} midiOutSetting - UI component for MIDI output port selection
+   * @param {Object} menu - Main menu UI component for focus management
+   */
   setDependencies(debug, midiInSetting, midiOutSetting, menu) {
     this.debug = debug
     this.midiInSetting = midiInSetting

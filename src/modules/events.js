@@ -1,13 +1,24 @@
 const midiMap = require('../data/midimap.js')
 
+/**
+ * EventManager - Handles all event coordination and keyboard input mapping
+ *
+ * This class manages event handling across the application including:
+ * - Keyboard input processing and command mapping
+ * - MIDI event handling and loop integration
+ * - UI event coordination (menus, dialogs, focus management)
+ * - Shift key combinations for special operations
+ * - Command sequence building and execution
+ * - Event delegation between different system components
+ */
 class EventManager {
   constructor() {
+    // Shift key character mappings for loop operations
     this.shiftKeys = {
       '!': 1,
       '@': 2,
       '#': 3,
-      // prettier-ignore
-      '$': 4,
+      $: 4,
       '%': 5,
       '^': 6,
       '&': 7,
@@ -15,13 +26,22 @@ class EventManager {
       '(': 9,
     }
 
-    this.ui = null
-    this.midi = null
-    this.loops = null
-    this.sequencer = null
-    this.debug = null
+    // System component references
+    this.ui = null // UI manager instance
+    this.midi = null // MIDI manager instance
+    this.loops = null // Loop manager instance
+    this.sequencer = null // Sequencer instance
+    this.debug = null // Debug logger instance
   }
 
+  /**
+   * Set up dependencies for the event manager
+   * @param {UIManager} ui - User interface manager instance
+   * @param {MidiManager} midi - MIDI input/output manager instance
+   * @param {LoopManager} loops - Loop management instance
+   * @param {Sequencer} sequencer - Sequencer for advanced operations
+   * @param {Logger} debug - Debug logger instance
+   */
   setDependencies(ui, midi, loops, sequencer, debug) {
     this.ui = ui
     this.midi = midi

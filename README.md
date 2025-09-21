@@ -2,13 +2,13 @@
 
 ![Kapture 2024-09-03 at 08 51 09](https://github.com/user-attachments/assets/6e8f19eb-0b9c-40b4-bba7-880c18ae3a54)
 
-Krait is a small command line application that records and plays MIDI messages.
+Krait is a command line MIDI looper application that records, plays, and manipulates MIDI messages in real-time. Version 0.4.1 includes advanced sequencing operations, save/load functionality, and a customizable terminal user interface.
 
 **WARNING:** This is a work-in-progress and was created fairly quickly so use at your own risk.
 
 ## Install & Run
 
-To get Krait running in the terminal, first makes ure you you have a Node and NPM installed.
+To get Krait running in the terminal, first make sure you have Node.js and NPM installed.
 
 ```bash
 git clone https://github.com/levibeach/krait.git
@@ -19,90 +19,150 @@ npm run start
 node ./src/main.js
 ```
 
-## Usages
+### Additional Scripts
 
-### Arming & Recording
+- `npm run hotdev` - Start with auto-reload during development
+- `npm run debug` - Tail the debug log file (.kraitlog)
 
-The idea is to quickly arm and record loops:
+## Usage
 
-1. Select a loop by pressing any number key 1-9.
+### Basic Loop Operations
+
+#### Arming & Recording
+
+The core workflow for creating loops:
+
+1. Select a loop by pressing any number key **1-9**.
 2. The loop you selected will highlight indicating that it is ready to record (armed).
-3. As soon as a MIDI signal is detected from the MIDI in it will start recording messages to the loop.
-4. When you want to stop the recording, just press the same number key again.
+3. As soon as a MIDI signal is detected from the MIDI input, it will start recording messages to the loop.
+4. When you want to stop recording, press the same number key again.
 
-After you have stopped recording the loop will immediately start playing so that there is virtually no pause when looping in a live session.
+After you stop recording, the loop will immediately start playing so that there is virtually no pause when looping in a live session.
 
-### Overdubbing
+#### Overdubbing
 
-If you want to add to an existing loop:
+To add to an existing loop:
 
-1. Select a loop you by pressing the number key
-2. Play something
-3. Press the loop number key again
+1. Select a loop by pressing the number key
+2. Play something (MIDI will be layered onto the existing loop)
+3. Press the loop number key again to stop overdubbing
 
-### Play/Pause
+#### Play/Pause
 
-While holding `Shift` and press a number to play/pause that loop.
+While holding **Shift** and press a number (1-9) to play/pause that loop independently.
 
-### Input Display
+### Save & Load Operations
 
-At any point you can prss `~` to see what data is being captured. A running log of all incoming data will stream down in the background.
+#### Saving Loops
 
-## Operations
+To save a loop to disk:
 
-There are three main operations that will allow your to manipulate loops. Their primary purpose, for now, is to manipulate the length of loops. The constraint is to keep it within 3 key strokes. Since there are only 9 loops possible, its easy to have a formula of an operation plus two modifiers: `[op][mod][mod]` where `op` is the operation and `mod` is a single digit 0-9.
+1. Press **`s`** to start a save sequence
+2. Press the number (1-9) of the loop you want to save
+3. A prompt will appear asking for a filename
+4. Enter the desired filename (without extension)
+5. Press Enter to save
 
-### (D)uplicate
+#### Loading Loops
 
-In some situations you want a clone of a loop with none of the data (i.e. an empty loop of the same length as another one). This is great for creating layers of loops at the same length.
+To load a previously saved loop:
 
-To do this, press `d` followed by the loop number, then the destination loop slot.
+1. Press **`l`** to start a load sequence
+2. Press the number (1-9) of the loop slot to load into
+3. A selection dialog will appear with available saved loops
+4. Use arrow keys to navigate and Enter to select
+5. Press Escape to cancel
 
-#### Examples
+Loops are saved to the `./saves/` directory as JSON files.
+
+### Advanced Operations
+
+There are several operations that allow you to manipulate loops. Their primary purpose is to manipulate the length and content of loops. The constraint is to keep operations within 3 keystrokes. Since there are only 9 loops possible, the formula is: **`[operation][source][target/factor]`** where `operation` is the operation character and the following digits specify source and target loops or modification factors.
+
+#### (D)uplicate
+
+Create an empty loop with the same length as another loop. This is useful for creating layers of loops at the same length.
+
+**Usage:** Press **`d`** followed by the source loop number, then the destination loop slot.
 
 | Operation | Outcome                          |
 | :-------- | :------------------------------- |
 | `d25`     | Loop 2's length is set on loop 5 |
 | `d93`     | Loop 9's length is set on loop 3 |
 
-To duplicate loop 2 to the loop 5 slot, simply type: `d25`
+#### (M)ultiply
 
-### (M)ultiply
+Expand a loop's length by a specific factor. Useful for extending loops to create longer variations.
 
-This operation emerged from a need to expand a loops length by a specific factor so that when a loop is duplicated you can extend it by a desired length.
-
-To do this, press `m` followed by the loop number, then the factor to which you want to multiply its length.
-
-#### Examples
+**Usage:** Press **`m`** followed by the loop number, then the multiplication factor.
 
 | Operation | Outcome                          |
 | :-------- | :------------------------------- |
 | `m32`     | Loop 3's length is multiplied 2x |
 | `m55`     | Loop 5's length is multiplied 5x |
 
-### (T)rim
+#### (T)rim
 
-Trim down the length of a loop by a factor.
+Reduce the length of a loop by a division factor.
 
-To do this, press `t` followed by the loop number, then the factor to which you want to trim its length.
-
-#### Examples
+**Usage:** Press **`t`** followed by the loop number, then the division factor.
 
 | Operation | Outcome                         |
 | :-------- | :------------------------------ |
 | `t42`     | Loop 4's length is cut in half  |
 | `t63`     | Loop 6's length is cut to a 3rd |
 
-### (C)lean
+#### (C)lean
 
-Need to get rid of the MIDI data but keep the loop length? Just type `c` followed by the loop number you want to clean out.
+Remove all MIDI data from a loop while keeping its length. Useful for clearing content while preserving timing.
 
-#### Example
+**Usage:** Press **`c`** followed by the loop number.
 
 | Operation | Outcome                       |
 | --------- | :---------------------------- |
 | `c1`      | Loop 1's MIDI data is removed |
 | `c2`      | Loop 2's MIDI data is removed |
+
+### Interface Features
+
+#### Input Display
+
+Press **`~`** to toggle the input display, which shows a running log of all incoming MIDI data streaming in the background.
+
+#### MIDI Configuration
+
+Use the main menu to:
+
+- Configure MIDI input ports
+- Configure MIDI output ports
+- Navigate between different interface components
+
+#### Debug Mode
+
+Krait automatically logs all activity to `.kraitlog`. Use `npm run debug` to monitor the log in real-time.
+
+## Configuration
+
+Krait uses a `config.json` file for customization:
+
+- **saveDirectory**: Where loop files are saved (default: "./saves")
+- **midiRate**: Timing rate in milliseconds (default: 25)
+- **defaultPorts**: Default MIDI input/output ports
+- **ui**: User interface styling and label formatting
+
+## Architecture
+
+Krait is built with a modular architecture:
+
+- **main.js**: Application entry point and initialization
+- **modules/**: Core functionality modules
+  - **ui.js**: User interface management
+  - **midi.js**: MIDI input/output handling
+  - **loops.js**: Loop recording, playback, and management
+  - **sequencer.js**: Advanced operations and sequencing
+  - **events.js**: Event handling and keyboard mappings
+- **data/**: Static data and animations
+- **utils/**: Utility functions and formatters
 
 ---
 
