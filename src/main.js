@@ -21,7 +21,7 @@
  * - Blessed.js for terminal user interface
  * - Node.js MIDI library for hardware integration
  *
- * @version 0.4.3
+ * @version 0.4.4
  * @author Levi Beach
  */
 
