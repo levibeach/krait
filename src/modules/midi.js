@@ -117,18 +117,29 @@ class MidiManager {
   }
 
   /**
-   * Send sound off for all channels
-   * Won't work in some configurations with external hardware
+   * Send comprehensive sound off for all channels
+   * Uses multiple methods to ensure external hardware synths respond properly
    */
   sendAllSoundOff() {
+    this.debug.log('Sending MIDI - stopping all sounds')
+
     for (let chan = 0; chan < 16; chan++) {
-      this.debug.log(`turning off ${chan} sounds`)
-      // send 'note off' for all notes (0-127) on this channel
+      // Method 1: Send explicit note off for all notes (most reliable for hardware)
       for (let note = 0; note < 128; note++) {
-        this.midiOut.sendMessage([0x80 + chan, note, 0])
+        this.midiOut.sendMessage([0x80 + chan, note, 0]) // Note Off
       }
-      // send 'all notes off' control change
+
+      // Method 2: Send All Notes Off (CC 123)
       this.midiOut.sendMessage([0xb0 + chan, 123, 0])
+
+      // Method 3: Send All Sound Off (CC 120) - more aggressive
+      this.midiOut.sendMessage([0xb0 + chan, 120, 0])
+
+      // Method 4: Reset All Controllers (CC 121) - clears sustain pedal, etc.
+      this.midiOut.sendMessage([0xb0 + chan, 121, 0])
+
+      // Method 5: Turn off sustain pedal specifically (CC 64)
+      this.midiOut.sendMessage([0xb0 + chan, 64, 0])
     }
   }
 
