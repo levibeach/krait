@@ -91,7 +91,6 @@ class MidiManager {
    * - Logs any errors encountered during initialization.
    */
   initMidiIo() {
-    this.midiIn.openVirtualPort('KRAIT:IN')
     this.midiOut.openVirtualPort('KRAIT:OUT')
 
     try {
