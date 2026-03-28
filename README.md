@@ -4,6 +4,8 @@
 
 Krait is a command line MIDI looper application that records, plays, and manipulates MIDI messages in real-time. Version 0.4.1 includes advanced sequencing operations, save/load functionality, and a customizable terminal user interface.
 
+Loop timing runs from a shared transport clock so recorded loops stay phase-locked. Incoming MIDI is softly quantized onto a configurable grid, but each event keeps a small micro-timing offset so playback still feels played instead of machine-perfect.
+
 ## Install & Run
 
 To get Krait running in the terminal, first make sure you have Node.js and NPM installed.
@@ -145,6 +147,10 @@ Krait uses a `config.json` file for customization:
 
 - **saveDirectory**: Where loop files are saved (default: "./saves")
 - **midiRate**: Timing rate in milliseconds (default: 25)
+- **clock.bpm**: Shared transport tempo in beats per minute
+- **clock.pulsesPerQuarter**: Internal pulse resolution used for loop timing
+- **clock.quantize.subdivisionsPerBeat**: Recording grid per beat. `4` means 16th notes.
+- **clock.quantize.strength**: How hard recorded notes are pulled toward the grid. `1.0` is fully quantized, lower values preserve more feel.
 - **defaultPorts**: Default MIDI input/output ports
 - **ui**: User interface styling and label formatting
 

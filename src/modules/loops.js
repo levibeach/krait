@@ -4,6 +4,16 @@ const fs = require('fs')
 const path = require('path')
 const config = require('../../config.json')
 
+const DEFAULT_CLOCK = {
+  bpm: 120,
+  pulsesPerQuarter: 24,
+}
+
+const DEFAULT_QUANTIZE = {
+  subdivisionsPerBeat: 4,
+  strength: 0.65,
+}
+
 /**
  * LoopManager - Manages MIDI loop recording, playback, and manipulation
  *
@@ -22,11 +32,20 @@ class LoopManager {
     this.recording = false // Global recording state flag
     this.overdub = false // Overdubbing mode flag
     this.playbackLength = motion.playback.length - 1 // Max frames for visual animation
-    this.midiRate = 25 // Timing rate in milliseconds
+    this.midiRate = config.midiRate || 25 // Legacy timing rate used in saves
     this.debug = null // Debug logger instance
     this.midi = null // MIDI manager instance
     this.loopList = null // UI loop list component
     this.l = 0 // Global motion counter for animations
+    this.transport = null // Shared application transport clock
+    this.clockSettings = {
+      ...DEFAULT_CLOCK,
+      ...(config.clock || {}),
+    }
+    this.quantizeSettings = {
+      ...DEFAULT_QUANTIZE,
+      ...((config.clock && config.clock.quantize) || {}),
+    }
   }
 
   /**
@@ -35,10 +54,17 @@ class LoopManager {
    * @param {MidiManager} midi - MIDI input/output manager
    * @param {Object} loopList - UI component for displaying loops
    */
-  setDependencies(debug, midi, loopList) {
+  setDependencies(debug, midi, loopList, transport) {
     this.debug = debug
     this.midi = midi
     this.loopList = loopList
+    this.transport = transport
+
+    if (this.transport) {
+      this.transport.subscribe((pulse, tickTime) => {
+        this.onClockPulse(pulse, tickTime)
+      })
+    }
   }
 
   /**
@@ -49,6 +75,153 @@ class LoopManager {
     this.l = l
   }
 
+  get tickMs() {
+    return this.transport ? this.transport.tickMs : this.midiRate
+  }
+
+  get quantizeGridPulses() {
+    const grid =
+      this.clockSettings.pulsesPerQuarter /
+      this.quantizeSettings.subdivisionsPerBeat
+
+    return Math.max(1, Math.round(grid))
+  }
+
+  normalizeFrame(frame, loopLength) {
+    if (!loopLength) return 0
+
+    return ((frame % loopLength) + loopLength) % loopLength
+  }
+
+  getLoopPulsePosition(loop, absolutePulsePosition = null) {
+    if (!loop.loopLength || loop.startPulse === null) {
+      return loop.frame || 0
+    }
+
+    const pulsePosition =
+      absolutePulsePosition === null
+        ? this.transport.getAbsolutePulsePosition()
+        : absolutePulsePosition
+
+    return this.normalizeFrame(pulsePosition - loop.startPulse, loop.loopLength)
+  }
+
+  getLoopFrameAtPulse(loop, pulse) {
+    return this.normalizeFrame(pulse - loop.startPulse, loop.loopLength)
+  }
+
+  getRecordingPulsePosition(loop, absolutePulsePosition = null) {
+    if (loop.locked && loop.loopLength) {
+      return this.getLoopPulsePosition(loop, absolutePulsePosition)
+    }
+
+    if (loop.recordStartPulse === null) {
+      return loop.frame || 0
+    }
+
+    const pulsePosition =
+      absolutePulsePosition === null
+        ? this.transport.getAbsolutePulsePosition()
+        : absolutePulsePosition
+
+    return Math.max(pulsePosition - loop.recordStartPulse, 0)
+  }
+
+  quantizePulsePosition(rawPulsePosition, loopLength = null) {
+    const nearestGridPulse =
+      Math.round(rawPulsePosition / this.quantizeGridPulses) *
+      this.quantizeGridPulses
+    const quantizedPulse =
+      rawPulsePosition +
+      (nearestGridPulse - rawPulsePosition) * this.quantizeSettings.strength
+    const wrappedPulse =
+      loopLength === null
+        ? Math.max(quantizedPulse, 0)
+        : this.normalizeFrame(quantizedPulse, loopLength)
+    const frame = Math.floor(wrappedPulse)
+    const offsetMs = Math.round((wrappedPulse - frame) * this.tickMs)
+
+    return {
+      frame,
+      offsetMs: Math.max(0, Math.min(offsetMs, Math.round(this.tickMs) - 1)),
+    }
+  }
+
+  quantizeLoopLength(rawLength) {
+    const snappedLength =
+      Math.round(rawLength / this.quantizeGridPulses) * this.quantizeGridPulses
+
+    return Math.max(this.quantizeGridPulses, snappedLength)
+  }
+
+  normalizeStoredEvent(event) {
+    if (Array.isArray(event)) {
+      return {
+        message: event,
+        offsetMs: 0,
+      }
+    }
+
+    return {
+      message: event.message,
+      offsetMs: event.offsetMs || 0,
+    }
+  }
+
+  clearScheduledMessages(loop) {
+    loop.scheduledMessages.forEach((timer) => clearTimeout(timer))
+    loop.scheduledMessages.clear()
+  }
+
+  dispatchLoopFrame(loop, frame) {
+    const frameRatio = frame / loop.loopLength
+    const keyframe = Math.ceil(this.playbackLength * frameRatio)
+
+    if (!loop.animating) {
+      loop.display.setContent(motion.playback[keyframe])
+    }
+
+    const events = loop.data.get(frame)
+    if (!events) return
+
+    events.forEach((storedEvent) => {
+      const event = this.normalizeStoredEvent(storedEvent)
+      const sendMessage = () => {
+        this.midi.output.sendMessage(event.message)
+      }
+
+      if (!event.offsetMs) {
+        sendMessage()
+        return
+      }
+
+      const timer = setTimeout(() => {
+        loop.scheduledMessages.delete(timer)
+        sendMessage()
+      }, event.offsetMs)
+
+      loop.scheduledMessages.add(timer)
+    })
+  }
+
+  onClockPulse(pulse) {
+    if (this.recording && this.armed && !this.armed.locked) {
+      this.armed.frame = Math.floor(
+        this.getRecordingPulsePosition(this.armed, pulse)
+      )
+      this.armed.label.setContent(motion.record[this.l])
+    }
+
+    for (const loop of this.loops.values()) {
+      if (!loop.playing || !loop.loopLength || loop.startPulse === null)
+        continue
+
+      const frame = this.getLoopFrameAtPulse(loop, pulse)
+      loop.frame = frame
+      this.dispatchLoopFrame(loop, frame)
+    }
+  }
+
   /**
    * Starts the recording loop if the system is armed.
    * Sets the recording state to true and updates the label color to red.
@@ -56,15 +229,14 @@ class LoopManager {
    * that updates the label content with motion data at a specified MIDI rate.
    */
   recordLoop() {
-    if (!this.armed) return
+    if (!this.armed || !this.transport) return
+
     this.recording = true
     this.armed.label.style.fg = 'red'
+
     if (!this.armed.locked) {
+      this.armed.recordStartPulse = this.transport.getCurrentPulse()
       this.armed.frame = 0
-      this.armed.interval = setInterval(() => {
-        this.armed.label.setContent(motion.record[this.l])
-        this.armed.frame++
-      }, this.midiRate)
     }
   }
 
@@ -78,17 +250,27 @@ class LoopManager {
    * - Starts playback of the recorded loop.
    */
   stopRecord() {
+    if (!this.armed || !this.transport) return
+
+    const loop = this.armed
+    const playbackPosition = this.getRecordingPulsePosition(loop)
+
     this.recording = false
-    this.armed.label.setContent(`————`)
-    if (!this.armed.loopLength) {
-      this.armed.loopLength = this.armed.frame
-      this.armed.locked = true
+    loop.label.setContent(`————`)
+
+    if (!loop.loopLength) {
+      loop.loopLength = this.quantizeLoopLength(playbackPosition)
+      loop.locked = true
     } else {
       this.overdub = true
     }
-    // clear the recording interval
-    clearInterval(this.armed.interval)
-    this.startLoop(this.armed.id)
+
+    loop.recordStartPulse = null
+    this.startLoop(loop.id, {
+      startFrame: Math.floor(
+        this.normalizeFrame(playbackPosition, loop.loopLength)
+      ),
+    })
   }
 
   /**
@@ -99,33 +281,27 @@ class LoopManager {
    *
    * @param {string|number} lid - The unique identifier for the loop to start.
    */
-  startLoop(lid) {
+  startLoop(lid, options = {}) {
     const loop = this.loops.get(lid)
     if (!loop) return
-
-    loop.playing = true
-    loop.frame = this.overdub ? loop.frame : 0
-    this.overdub = false
 
     if (!loop.loopLength) {
       this.debug.log('loop has no length')
       return
     }
 
-    loop.interval = setInterval(() => {
-      const frameRatio = loop.frame / loop.loopLength
-      const keyframe = Math.ceil(this.playbackLength * frameRatio)
+    const startFrame =
+      typeof options.startFrame === 'number'
+        ? this.normalizeFrame(options.startFrame, loop.loopLength)
+        : this.overdub
+          ? this.normalizeFrame(loop.frame || 0, loop.loopLength)
+          : 0
 
-      if (!loop.animating) {
-        loop.display.setContent(motion.playback[keyframe])
-      }
-
-      loop.data.get(loop.frame)?.forEach((item) => {
-        this.midi.output.sendMessage(item)
-      })
-
-      loop.frame = (loop.frame + 1) % loop.loopLength
-    }, this.midiRate)
+    this.clearScheduledMessages(loop)
+    loop.playing = true
+    loop.frame = startFrame
+    loop.startPulse = this.transport.getCurrentPulse() - startFrame
+    this.overdub = false
   }
 
   /**
@@ -136,8 +312,11 @@ class LoopManager {
    */
   stopLoop(lid) {
     const loop = this.loops.get(lid)
+    if (!loop) return
+
     loop.playing = false
-    clearInterval(loop.interval)
+    loop.startPulse = null
+    this.clearScheduledMessages(loop)
   }
 
   /**
@@ -225,9 +404,11 @@ class LoopManager {
       locked: false,
       playing: false,
       animating: false,
-      interval: null,
+      startPulse: null,
+      recordStartPulse: null,
       channels: [],
       data: new Map(),
+      scheduledMessages: new Set(),
       label: blessed.box({
         parent: this.loopList,
         top: 3,
@@ -292,6 +473,8 @@ class LoopManager {
       const loopA = this.loops.get(a)
       const loopB = this.loops.get(b)
       loopB.frame = 0
+      loopB.startPulse = null
+      loopB.recordStartPulse = null
       loopB.locked = true
       loopB.loopLength = loopA.loopLength
       loopB.channels = [] // Reset channels for new empty loop
@@ -543,6 +726,7 @@ class LoopManager {
 
       // Clear existing data
       targetLoop.data.clear()
+      this.clearScheduledMessages(targetLoop)
 
       // Load the saved data
       targetLoop.loopLength = loopData.loopLength
@@ -551,11 +735,13 @@ class LoopManager {
       targetLoop.frame = 0
       targetLoop.playing = false
       targetLoop.animating = false
+      targetLoop.startPulse = null
+      targetLoop.recordStartPulse = null
 
       // Convert array back to Map
       if (loopData.data && Array.isArray(loopData.data)) {
         loopData.data.forEach(([frame, events]) => {
-          targetLoop.data.set(frame, events)
+          targetLoop.data.set(Number(frame), events)
         })
       }
 
@@ -593,8 +779,10 @@ class LoopManager {
   addMidiData(frame, message) {
     if (!this.armed) return
 
+    const normalizedMessage = Array.from(message)
+
     // Extract MIDI channel from status byte (lower 4 bits)
-    const statusByte = message[0]
+    const statusByte = normalizedMessage[0]
     const channel = statusByte & 0x0f // Get channel (0-15)
 
     // Add channel to channels array if not already present
@@ -604,9 +792,42 @@ class LoopManager {
 
     // Add MIDI data to the frame
     if (this.armed.data.has(frame)) {
-      this.armed.data.get(frame).push(message)
+      this.armed.data.get(frame).push(normalizedMessage)
     } else {
-      this.armed.data.set(frame, [message])
+      this.armed.data.set(frame, [normalizedMessage])
+    }
+  }
+
+  recordMidiMessage(message) {
+    if (!this.armed || !this.transport) return
+
+    const loop = this.armed
+    const rawPulsePosition = this.getRecordingPulsePosition(loop)
+    const { frame, offsetMs } = this.quantizePulsePosition(
+      rawPulsePosition,
+      loop.locked ? loop.loopLength : null
+    )
+    const normalizedMessage = Array.from(message)
+
+    const statusByte = normalizedMessage[0]
+    const channel = statusByte & 0x0f
+
+    if (!loop.channels.includes(channel)) {
+      loop.channels.push(channel)
+    }
+
+    if (loop.data.has(frame)) {
+      loop.data.get(frame).push({
+        message: normalizedMessage,
+        offsetMs,
+      })
+    } else {
+      loop.data.set(frame, [
+        {
+          message: normalizedMessage,
+          offsetMs,
+        },
+      ])
     }
   }
 

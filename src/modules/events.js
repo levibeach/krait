@@ -91,8 +91,8 @@ class EventManager {
           if (!this.loops.isRecording) {
             this.loops.recordLoop()
           }
-          // Add MIDI data to the current frame
-          this.loops.addMidiData(this.loops.armedLoop.frame, message)
+          // Record MIDI against the shared transport with soft quantization.
+          this.loops.recordMidiMessage(message)
         }
       }
     })
