@@ -21,7 +21,7 @@
  * - Blessed.js for terminal user interface
  * - Node.js MIDI library for hardware integration
  *
- * @version 0.4.4
+ * @version 0.5.0
  * @author Levi Beach
  */
 
@@ -35,6 +35,8 @@ const MidiManager = require('./modules/midi.js')
 const LoopManager = require('./modules/loops.js')
 const Sequencer = require('./modules/sequencer.js')
 const EventManager = require('./modules/events.js')
+const TransportClock = require('./modules/clock.js')
+const config = require('../config.json')
 
 // Initialize global application state
 const debug = new Logger() // Debug logging system
@@ -61,17 +63,20 @@ function init() {
   const loops = new LoopManager()
   const sequencer = new Sequencer()
   const events = new EventManager()
+  const transport = new TransportClock(config.clock)
 
   // Establish inter-module dependencies
   midi.setDependencies(debug, ui.midiInMenu, ui.midiOutMenu, ui.mainMenu)
-  loops.setDependencies(debug, midi, ui.loopContainer)
+  loops.setDependencies(debug, midi, ui.loopContainer, transport)
   sequencer.setDependencies(debug, loops, ui)
   events.setDependencies(ui, midi, loops, sequencer, debug)
 
   // Initialize core systems
   loops.initLoops() // Set up loop storage and UI components
+  ui.setTransportStatus(loops.getTransportStatus())
   midi.initMidiIo() // Initialize MIDI ports and connections
   events.setupEventListeners() // Set up all event handling
+  transport.start() // Start the shared transport clock
 
   // Start main application loops
   ui.startRenderLoop(rate) // Begin UI render cycle
@@ -85,6 +90,9 @@ function init() {
 
   // Signal application ready state
   ui.logger.log('░▒▓█ KRAIT IS READY █▓▒░')
+  ui.logger.log(
+    `clock ${transport.bpm} BPM | ${transport.pulsesPerQuarter} PPQ | grid 1/${config.clock.quantize.subdivisionsPerBeat * 4}`
+  )
 }
 
 // Start the application

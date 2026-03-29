@@ -1,4 +1,14 @@
-.DS_Store
-.kraitlog
+# node.js
 node_modules
+
+# macOS
+.DS_Store
+
+# IDE
+.vscode
+
+# KRAIT
+# used for debugging
+.kraitlog
+# default folder for saved loops
 saves
