@@ -1,6 +1,14 @@
 {
   "saveDirectory": "./saves",
   "midiRate": 25,
+  "clock": {
+    "bpm": 120,
+    "pulsesPerQuarter": 24,
+    "quantize": {
+      "subdivisionsPerBeat": 4,
+      "strength": 0.65
+    }
+  },
   "defaultPorts": {
     "in": 0,
     "out": 0

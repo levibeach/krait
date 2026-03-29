@@ -91,8 +91,8 @@ class EventManager {
           if (!this.loops.isRecording) {
             this.loops.recordLoop()
           }
-          // Add MIDI data to the current frame
-          this.loops.addMidiData(this.loops.armedLoop.frame, message)
+          // Record MIDI against the shared transport with soft quantization.
+          this.loops.recordMidiMessage(message)
         }
       }
     })
@@ -225,10 +225,46 @@ class EventManager {
       this.ui.logger.toggle()
     })
 
+    // Keyboard shortcuts help
+    this.ui.mainScreen.key(['k'], () => {
+      if (this.ui.isInputBlocked()) return // Block if input dialog is active
+      this.ui.showKeyboardShortcuts()
+    })
+
     // Spacebar to start/stop all loops
     this.ui.mainScreen.key(['space'], () => {
       if (this.ui.isInputBlocked()) return // Block if input dialog is active
       this.loops.toggleAllLoops()
+    })
+
+    // Plus/minus control for BPM and quantization subdivision.
+    this.ui.mainScreen.on('keypress', (ch, key) => {
+      if (this.ui.isInputBlocked()) return
+      if (!key) return
+
+      const isPlus =
+        ch === '+' || ch === '=' || key.name === 'add' || key.name === 'equal'
+      const isMinus =
+        ch === '-' ||
+        ch === '_' ||
+        key.name === 'subtract' ||
+        key.name === 'minus' ||
+        key.name === 'dash'
+      const shiftedPlus = ch === '+'
+      const shiftedMinus = ch === '_'
+      const isShiftModified = key.shift || shiftedPlus || shiftedMinus
+
+      if (!isPlus && !isMinus) return
+
+      const delta = isPlus ? 1 : -1
+
+      if (isShiftModified) {
+        this.loops.adjustSubdivisions(delta)
+      } else {
+        this.loops.adjustBpm(delta)
+      }
+
+      this.ui.setTransportStatus(this.loops.getTransportStatus())
     })
   }
 }
