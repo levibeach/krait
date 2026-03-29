@@ -28,6 +28,15 @@ class TransportClock {
     this.interval = setInterval(() => this.tick(), this.tickMs)
   }
 
+  setBpm(bpm) {
+    this.bpm = bpm
+
+    if (!this.interval) return
+
+    clearInterval(this.interval)
+    this.interval = setInterval(() => this.tick(), this.tickMs)
+  }
+
   stop() {
     if (!this.interval) return
 

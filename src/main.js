@@ -73,6 +73,7 @@ function init() {
 
   // Initialize core systems
   loops.initLoops() // Set up loop storage and UI components
+  ui.setTransportStatus(loops.getTransportStatus())
   midi.initMidiIo() // Initialize MIDI ports and connections
   events.setupEventListeners() // Set up all event handling
   transport.start() // Start the shared transport clock

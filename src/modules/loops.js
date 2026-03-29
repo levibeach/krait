@@ -14,6 +14,11 @@ const DEFAULT_QUANTIZE = {
   strength: 0.65,
 }
 
+const MIN_BPM = 1
+const MAX_BPM = 6000
+const MIN_SUBDIVISIONS_PER_BEAT = 1
+const MAX_SUBDIVISIONS_PER_BEAT = 16
+
 /**
  * LoopManager - Manages MIDI loop recording, playback, and manipulation
  *
@@ -85,6 +90,43 @@ class LoopManager {
       this.quantizeSettings.subdivisionsPerBeat
 
     return Math.max(1, Math.round(grid))
+  }
+
+  get gridDivision() {
+    return this.quantizeSettings.subdivisionsPerBeat * 4
+  }
+
+  getTransportStatus() {
+    return `${this.clockSettings.bpm} 1/${this.gridDivision}`
+  }
+
+  adjustBpm(delta) {
+    const nextBpm = Math.max(
+      MIN_BPM,
+      Math.min(MAX_BPM, this.clockSettings.bpm + delta)
+    )
+
+    this.clockSettings.bpm = nextBpm
+
+    if (this.transport) {
+      this.transport.setBpm(nextBpm)
+    }
+
+    return this.clockSettings.bpm
+  }
+
+  adjustSubdivisions(delta) {
+    const nextSubdivisions = Math.max(
+      MIN_SUBDIVISIONS_PER_BEAT,
+      Math.min(
+        MAX_SUBDIVISIONS_PER_BEAT,
+        this.quantizeSettings.subdivisionsPerBeat + delta
+      )
+    )
+
+    this.quantizeSettings.subdivisionsPerBeat = nextSubdivisions
+
+    return this.quantizeSettings.subdivisionsPerBeat
   }
 
   normalizeFrame(frame, loopLength) {

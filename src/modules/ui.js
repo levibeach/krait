@@ -14,6 +14,8 @@ class UIManager {
     this.screen = null
     this.inputDisplay = null
     this.loopList = null
+    this.transportStatus = null
+    this.shortcutsHelp = null
     this.menu = null
     this.midiInSetting = null
     this.midiOutSetting = null
@@ -89,6 +91,19 @@ class UIManager {
       left: 'center',
       width: 44,
       height: 5,
+    })
+
+    this.transportStatus = blessed.box({
+      parent: this.screen,
+      bottom: 0,
+      left: 0,
+      width: 'shrink',
+      height: 1,
+      tags: true,
+      content: '',
+      style: {
+        fg: 'white',
+      },
     })
 
     this.menu = blessed.list({
@@ -356,6 +371,116 @@ class UIManager {
     }, interval)
   }
 
+  setTransportStatus(content) {
+    if (!this.transportStatus) return
+    this.transportStatus.setContent(content)
+  }
+
+  showKeyboardShortcuts() {
+    if (this.shortcutsHelp) return
+
+    this.blockInput()
+
+    const shortcutLines = [
+      '{bold}LOOP{/bold}',
+      '----------------------',
+      '1-9               Arm/disarm loop',
+      'Shift+1..9        Start/stop loop',
+      'Tab               Toggle reset mode',
+      'Space             Start/stop all loops',
+      '0                 MIDI panic (all sound off)',
+      '',
+      '{bold}TRANSPORT{/bold}',
+      '----------------------',
+      '=                 Increase BPM',
+      '-                 Decrease BPM',
+      'Shift + =         Increase subdivision',
+      'Shift + -         Decrease subdivision',
+      '',
+      '{bold}SEQUENCE{/bold}',
+      '----------------------',
+      'cN                Clean loop N',
+      'dAB               Duplicate loop A into loop B',
+      'lN                Load a saved loop into slot N',
+      'mAB               Multiply loop A length by B',
+      'sN                Save loop N',
+      'tAB               Trim loop A length by B',
+      'xLAB              Reassign loop L channel A to B',
+      '0-f               Channels 1-16 in x sequences',
+      '',
+      '{bold}MISC{/bold}',
+      '----------------------',
+      'Ctrl+d            Toggle menu',
+      '`                 Toggle debug log',
+      'Esc               Close dialogs / cancel armed loop',
+      'Ctrl+q, Ctrl+c    Quit',
+      '',
+      '{gray-fg}Press k, q, or Esc to close{/gray-fg}',
+    ]
+
+    const contentHeight = shortcutLines.length
+    const modalHeight = Math.min(contentHeight + 2, this.screen.height - 2)
+
+    this.shortcutsHelp = blessed.box({
+      parent: this.screen,
+      top: 'center',
+      left: 'center',
+      width: 62,
+      height: Math.max(8, modalHeight),
+      label: this.formatLabel('Keyboard Shortcuts', 'dialog'),
+      tags: true,
+      border: {
+        type: 'line',
+      },
+      keys: true,
+      vi: true,
+      mouse: true,
+      scrollable: true,
+      alwaysScroll: true,
+      scrollbar: {
+        ch: ' ',
+        track: {
+          bg: 'white',
+        },
+        style: {
+          bg: 'cyan',
+        },
+      },
+      content: shortcutLines.join('\n'),
+      // Use explicit box-safe focus styles; dialog list styles include
+      // selected-state effects that are not valid for plain boxes.
+      style: {
+        fg: 'white',
+        border: {
+          fg: 'white',
+        },
+        focus: {
+          border: {
+            fg: 'white',
+          },
+        },
+        scrollbar: {
+          bg: 'cyan',
+        },
+        track: {
+          bg: 'white',
+        },
+      },
+    })
+
+    const closeHelp = () => {
+      if (!this.shortcutsHelp) return
+      this.shortcutsHelp.destroy()
+      this.shortcutsHelp = null
+      this.unblockInput()
+      this.screen.render()
+    }
+
+    this.shortcutsHelp.key(['escape', 'q', 'k'], closeHelp)
+    this.shortcutsHelp.focus()
+    this.screen.render()
+  }
+
   // Getters for external module access to UI components
 
   /** @returns {blessed.Screen} - The main blessed screen instance */
@@ -371,6 +496,11 @@ class UIManager {
   /** @returns {blessed.Box} - The main loop container for loop displays */
   get loopContainer() {
     return this.loopList
+  }
+
+  /** @returns {blessed.Box} - Bottom-left transport status text */
+  get transportStatusDisplay() {
+    return this.transportStatus
   }
 
   /** @returns {blessed.List} - The main application menu */
