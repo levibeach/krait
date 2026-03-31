@@ -1,5 +1,6 @@
 const blessed = require('blessed')
 const config = require('../../config.json')
+const SequencePreview = require('./sequence-preview')
 
 /**
  * UIManager - Manages all user interface components and dialogs for Krait
@@ -15,6 +16,7 @@ class UIManager {
     this.inputDisplay = null
     this.loopList = null
     this.transportStatus = null
+    this.sequencePreview = null
     this.shortcutsHelp = null
     this.menu = null
     this.midiInSetting = null
@@ -105,6 +107,8 @@ class UIManager {
         fg: 'white',
       },
     })
+
+    this.sequencePreview = new SequencePreview(this.screen)
 
     this.menu = blessed.list({
       ...this.createMenuProps(),
@@ -369,6 +373,24 @@ class UIManager {
     setInterval(() => {
       this.screen.render()
     }, interval)
+  }
+
+  setSequencePreview(sequence) {
+    if (this.sequencePreview) {
+      this.sequencePreview.setSequence(sequence)
+    }
+  }
+
+  clearSequencePreview() {
+    if (this.sequencePreview) {
+      this.sequencePreview.clear()
+    }
+  }
+
+  completeSequencePreview() {
+    if (this.sequencePreview) {
+      this.sequencePreview.complete()
+    }
   }
 
   setTransportStatus(content) {
