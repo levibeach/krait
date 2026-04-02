@@ -128,6 +128,7 @@ class Sequencer {
     } finally {
       this.action = false
       this.sequence = ''
+      this.ui.completeSequencePreview()
     }
   }
 
@@ -138,6 +139,7 @@ class Sequencer {
   startAction(ch) {
     this.action = true
     this.sequence = ch
+    this.ui.setSequencePreview(this.sequence)
   }
 
   /**
@@ -146,6 +148,7 @@ class Sequencer {
    */
   addToSequence(ch) {
     this.sequence += ch
+    this.ui.setSequencePreview(this.sequence)
     this.debug.log(
       `Sequence building: "${this.sequence}" (length: ${this.sequence.length})`
     )
@@ -168,6 +171,7 @@ class Sequencer {
   reset() {
     this.action = false
     this.sequence = ''
+    this.ui.clearSequencePreview()
     this.toggleReset(false)
   }
 
